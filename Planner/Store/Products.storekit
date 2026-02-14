@@ -1,0 +1,166 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "8025D9C6",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "6758611577",
+      "localizations" : [
+        {
+          "description" : "A calm and warm autumn-inspired theme.",
+          "displayName" : "GrassPlanner Theme – Autumn",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.grassplanner.theme.autumn",
+      "referenceName" : "GrassPlanner Theme – Autumn",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "6758611371",
+      "localizations" : [
+        {
+          "description" : "A light and fresh spring-inspired theme.",
+          "displayName" : "GrassPlanner Theme – Spring",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.grassplanner.theme.spring",
+      "referenceName" : "GrassPlanner Theme – Spring",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "6758611331",
+      "localizations" : [
+        {
+          "description" : "A bright and energetic summer-inspired theme.",
+          "displayName" : "GrassPlanner Theme – Summer",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.grassplanner.theme.summer",
+      "referenceName" : "GrassPlanner Theme – Summer",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "6758611557",
+      "localizations" : [
+        {
+          "description" : "A clean and minimal winter-inspired theme.",
+          "displayName" : "GrassPlanner Theme – Winter",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.grassplanner.theme.winter",
+      "referenceName" : "GrassPlanner Theme – Winter",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6758608741",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_developerTeamID" : "DUBPMF36TD",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 791723591.33464003,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21915164",
+      "localizations" : [
+
+      ],
+      "name" : "GrassPlanner Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6758611586",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited plans and notifications for future dates",
+              "displayName" : "GrassPlanner Pro (Monthly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.grassplanner.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "GrassPlanner Pro (Monthly)",
+          "subscriptionGroupID" : "21915164",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6758611735",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited plans and notifications for future dates",
+              "displayName" : "GrassPlanner Pro (Yearly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.grassplanner.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "GrassPlanner Pro (Yearly)",
+          "subscriptionGroupID" : "21915164",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
