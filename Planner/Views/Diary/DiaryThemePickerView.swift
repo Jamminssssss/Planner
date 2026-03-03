@@ -29,7 +29,6 @@ struct DiaryThemePickerView: View {
         }
     }
 
-    // â”€â”€ í–‰ â”€â”€
     private func themeRow(_ theme: SeasonTheme) -> some View {
         let owned  = storeManager.hasPurchased(theme: theme)
         let active = (currentTheme == theme)
@@ -49,7 +48,7 @@ struct DiaryThemePickerView: View {
             }
         }) {
             HStack(spacing: 14) {
-                // í…Œë§ˆ ì•„ì´ì½˜ íƒ€ì¼
+                // 테마 아이콘 타일
                 ZStack {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(theme.color(for: 3, isCurrentMonth: true).opacity(0.25))
@@ -57,33 +56,46 @@ struct DiaryThemePickerView: View {
                     Text(theme.icon).font(.system(size: 26))
                 }
 
-                // ì´ë¦„ + ìƒíƒœ
+                // 이름 + 상태 텍스트
                 VStack(alignment: .leading, spacing: 2) {
                     Text(theme.displayName)
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(Color.primary)
 
                     if theme == .classic {
-                        Text("Free").font(.system(size: 13)).foregroundStyle(Color.green)
+                        Text("Free")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.green)
                     } else if owned {
-                        Text("Purchased").font(.system(size: 13)).foregroundStyle(Color.green)
+                        Text("Purchased")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.green)
                     } else if let p = storeManager.product(for: theme) {
-                        Text(p.displayPrice).font(.system(size: 13)).foregroundStyle(Color.secondary)
+                        Text(p.displayPrice)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.secondary)
                     }
                 }
 
                 Spacer()
 
-                // ì˜¤ë¥¸ìª½ ì•„ì´ì½˜
+                // 오른쪽 아이콘
                 if active {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20)).foregroundStyle(Color.green)
-                } else if !owned {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 16)).foregroundStyle(Color.secondary)
-                } else {
+                        .font(.system(size: 20))
+                        .foregroundStyle(Color.green)
+                } else if owned {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14)).foregroundStyle(Color.secondary.opacity(0.4))
+                        .font(.system(size: 14))
+                        .foregroundStyle(Color.secondary.opacity(0.4))
+                } else if storeManager.isPurchasing {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                } else {
+                    // 미구매 → 초록 카트
+                    Image(systemName: "cart.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.green)
                 }
             }
             .padding(.vertical, 6)

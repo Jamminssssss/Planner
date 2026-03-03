@@ -1,59 +1,76 @@
 import SwiftUI
 import SwiftData
 
-/// 홈 화면 (하루 1개 제한 포함)
+/// 홈 화면 — 캘린더 테마 배경 적용
 struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
-    
+    @Environment(\.colorScheme)  private var colorScheme
+
     @StateObject private var storeManager = StoreKitManager.shared
-    
+
+    // 캘린더 테마 (ThemeStoreView와 동일한 키 공유)
+    @AppStorage(ThemeType.calendar.storageKey)
+    private var calendarThemeRaw: String = SeasonTheme.classic.rawValue
+    private var currentTheme: SeasonTheme {
+        SeasonTheme(rawValue: calendarThemeRaw) ?? .classic
+    }
+
     @State private var displayedMonth: Date = {
         let cal = Calendar.current
         let today = Date()
         return cal.date(from: cal.dateComponents([.year, .month], from: today)) ?? today
     }()
     @State private var selectedDate: Date? = nil
-    @State private var showAddPlan = false
-    @State private var showPaywall = false
-    
+    @State private var showAddPlan  = false
+    @State private var showPaywall  = false
+
     @Query private var allPlans: [Plan]
-    
+
     // MARK: - 오늘 계획
     private var todayPlans: [Plan] {
         let cal = Calendar.current
         let today = Date()
         return allPlans.filter { plan in
-            plan.year == cal.component(.year, from: today) &&
+            plan.year  == cal.component(.year,  from: today) &&
             plan.month == cal.component(.month, from: today) &&
-            plan.day == cal.component(.day, from: today) &&
+            plan.day   == cal.component(.day,   from: today) &&
             plan.status != .canceled
         }
         .sorted { $0.scheduledDate < $1.scheduledDate }
     }
-    
+
     private var canAddMorePlans: Bool {
         storeManager.isPro || todayPlans.count < 1
     }
-    
+
+    // MARK: - Body
+
     var body: some View {
         NavigationStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
-                    
-                    // 🟢 달력
-                    GrassCalendarView(
-                        displayedMonth: $displayedMonth,
-                        selectedDate: $selectedDate
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    
-                    Divider().padding(.horizontal, 16)
-                    
-                    todaySection.padding(.horizontal, 16)
-                    
-                    Spacer(minLength: 80)
+            ZStack {
+                // ── 테마 배경 ──
+                ThemeBackgroundView(theme: currentTheme)
+
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 24) {
+
+                        GrassCalendarView(
+                            displayedMonth: $displayedMonth,
+                            selectedDate: $selectedDate
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+
+                        Divider()
+                            .background(currentTheme.diaryAccent.opacity(0.3))
+                            .padding(.horizontal, 16)
+
+                        todaySection.padding(.horizontal, 16)
+
+                        Spacer(minLength: 80)
+                    }
                 }
+                .scrollContentBackground(.hidden)
             }
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -64,7 +81,7 @@ struct HomeView: View {
                             .foregroundColor(.green)
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarLeading) {
                     HStack(spacing: 16) {
                         NavigationLink { CategoryListView() } label: {
@@ -94,8 +111,9 @@ struct HomeView: View {
             .sheet(isPresented: $showPaywall) { PurchaseView() }
         }
     }
-    
+
     // MARK: - Today Section
+
     @ViewBuilder
     private var todaySection: some View {
         VStack(spacing: 12) {
@@ -105,7 +123,7 @@ struct HomeView: View {
                     .foregroundColor(.primary)
                 Spacer()
                 let completedCount = todayPlans.filter { $0.status == .completed }.count
-                let totalCount = todayPlans.count
+                let totalCount     = todayPlans.count
                 if totalCount > 0 {
                     Text("\(completedCount)/\(totalCount) completed")
                         .font(.footnote)
@@ -116,7 +134,6 @@ struct HomeView: View {
             if todayPlans.isEmpty {
                 emptyTodayView
             } else {
-                // ✅ List + ForEach로 스와이프 삭제
                 List {
                     ForEach(todayPlans) { plan in
                         TodayPlanRow(plan: plan, onToggle: { toggleComplete(plan) })
@@ -130,12 +147,15 @@ struct HomeView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
                 .frame(height: CGFloat(todayPlans.count) * 80)
                 .scrollDisabled(true)
             }
         }
     }
-    
+
+    // MARK: - Empty Today
+
     private var emptyTodayView: some View {
         VStack(spacing: 8) {
             Image(systemName: "leaf")
@@ -151,28 +171,29 @@ struct HomeView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
     }
-    
+
     // MARK: - Actions
+
     private func handleAddPlanTap() {
         if canAddMorePlans { showAddPlan = true }
-        else { showPaywall = true }
+        else               { showPaywall  = true }
     }
-    
+
     private func toggleComplete(_ plan: Plan) {
         if plan.status == .completed {
-            plan.status = .planned
+            plan.status      = .planned
             plan.completedAt = nil
             if plan.notificationEnabled && plan.hasTime {
                 Task { await NotificationService.shared.schedule(for: plan) }
             }
         } else {
             NotificationService.shared.cancel(planId: plan.id)
-            plan.status = .completed
+            plan.status      = .completed
             plan.completedAt = Date()
         }
         try? modelContext.save()
     }
-    
+
     private func deletePlan(_ plan: Plan) {
         NotificationService.shared.cancel(planId: plan.id)
         modelContext.delete(plan)

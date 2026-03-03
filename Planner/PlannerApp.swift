@@ -19,7 +19,15 @@ struct PlannerApp: App {
                 DiaryImage.self
             ])
 
-            let config = ModelConfiguration(schema: schema)
+            // ✅ 명시적 저장 경로 지정 — 앱 삭제 전까지 데이터 영구 보존
+            let storeURL = URL.applicationSupportDirectory
+                .appending(path: "GrassPlanner.store")
+
+            let config = ModelConfiguration(
+                schema: schema,
+                url: storeURL,
+                cloudKitDatabase: .none  // CloudKit 미사용 명시
+            )
 
             modelContainer = try ModelContainer(
                 for: Category.self,
@@ -29,7 +37,7 @@ struct PlannerApp: App {
                 configurations: config
             )
 
-            print("✅ ModelContainer 생성 완료 (CloudKit OFF)")
+            print("✅ ModelContainer 생성 완료 — 저장 경로: \(storeURL.path)")
         } catch {
             fatalError("[PlannerApp] ModelContainer 생성 실패: \(error)")
         }
@@ -93,16 +101,5 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         case .none:
             completionHandler([.banner, .sound])
         }
-    }
-
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
-        if let planId = response.notification.request.content.userInfo["planId"] as? String {
-            print("[NotificationDelegate] Tapped → planId: \(planId)")
-        }
-        completionHandler()
     }
 }

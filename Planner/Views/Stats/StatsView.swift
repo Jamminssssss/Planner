@@ -6,12 +6,9 @@ import Charts
 
 struct StatsView: View {
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var storeManager = StoreKitManager.shared
 
     @Query private var allPlans:   [Plan]
     @Query private var allDiaries: [DiaryEntry]
-
-    @State private var showPaywall = false
 
     // ── 기간 탭 ──
     enum Period: String, CaseIterable {
@@ -23,33 +20,24 @@ struct StatsView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 24) {
-                        
-                        periodPicker
-                        summaryCards
-                        completionChart
-                        categoryBreakdown
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 24) {
 
-                        // ── 일기 통계 섹션 (기존 아래에 추가) ──
-                        diarySection
+                    periodPicker
+                    summaryCards
+                    completionChart
+                    categoryBreakdown
 
-                        Spacer(minLength: 60)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                    // ── 일기 통계 섹션 ──
+                    diarySection
+
+                    Spacer(minLength: 60)
                 }
-
-                if !storeManager.isPro {
-                    StatsLockedOverlay(onUpgrade: { showPaywall = true })
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
             }
             .navigationTitle("Statistics")
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $showPaywall) {
-                PurchaseView()
-            }
         }
     }
 
@@ -214,7 +202,6 @@ struct StatsView: View {
 
         return VStack(alignment: .leading, spacing: 16) {
 
-            // ── 타이틀 ──
             HStack(spacing: 6) {
                 Text("📓")
                 Text("Diary")
@@ -222,19 +209,16 @@ struct StatsView: View {
                     .foregroundStyle(Color.primary)
             }
 
-            // ── 요약 카드 3개 ──
             HStack(spacing: 10) {
                 statCard(title: "Days",    value: "\(ds.daysWritten)",  icon: "calendar",   color: .purple)
                 statCard(title: "Entries", value: "\(ds.totalEntries)", icon: "book.pages", color: .indigo)
                 statCard(title: "Streak",  value: "\(ds.streak)d",     icon: "flame",      color: .orange)
             }
 
-            // ── 기분 분포 ──
             if !ds.moodCounts.isEmpty {
                 moodDistribution(ds.moodCounts)
             }
 
-            // ── 주별 일기 작성 차트 (SwiftBarChart 재사용) ──
             if !ds.weeklyBar.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("This Week")
@@ -259,7 +243,6 @@ struct StatsView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Color.secondary)
 
-            // 비율 막대
             GeometryReader { geo in
                 HStack(spacing: 0) {
                     ForEach(counts, id: \.0) { (mood, count) in
@@ -269,7 +252,6 @@ struct StatsView: View {
                                 .fill(mood.color)
                                 .frame(width: geo.size.width * ratio)
 
-                            // 비율이 충분히 크면 이모지 표시
                             if ratio > 0.1 {
                                 Text(mood.emoji).font(.system(size: 14))
                             }
@@ -280,7 +262,6 @@ struct StatsView: View {
             }
             .frame(height: 24)
 
-            // 주례 행
             HStack(spacing: 14) {
                 ForEach(counts, id: \.0) { (mood, count) in
                     HStack(spacing: 3) {
@@ -295,7 +276,7 @@ struct StatsView: View {
     }
 
     // =========================================================
-    // MARK: - Plan Data Computation  (기존 그대로)
+    // MARK: - Plan Data Computation
     // =========================================================
 
     private var filteredPlans: [Plan] {
@@ -379,7 +360,7 @@ struct StatsView: View {
             }
 
         case .month:
-            let range  = cal.range(of: .day, in: .month, for: today) ?? 1..<31
+            let range = cal.range(of: .day, in: .month, for: today) ?? 1..<31
             return range.map { d in
                 let cnt = filteredPlans.filter {
                     $0.status == .completed && $0.day == d
@@ -443,7 +424,6 @@ struct StatsView: View {
         let cal   = Calendar.current
         let today = Date()
 
-        // ── selectedPeriod 기준 필터 ──
         let filtered: [DiaryEntry]
         switch selectedPeriod {
         case .day:
@@ -465,12 +445,10 @@ struct StatsView: View {
             }
         }
 
-        // ── 날짜 수 (중복 제거) ──
         let dateSet = Set(filtered.map { "\($0.year)-\($0.month)-\($0.day)" })
 
-        // ── 연속 기록 (오늘부터 역산) ──
-        var streak   = 0
-        var check    = today
+        var streak = 0
+        var check  = today
         outerLoop: while true {
             let c   = cal.dateComponents([.year, .month, .day], from: check)
             let key = "\(c.year!)-\(c.month!)-\(c.day!)"
@@ -482,14 +460,12 @@ struct StatsView: View {
             }
         }
 
-        // ── 기분 분포 ──
         var moodMap: [Mood: Int] = [:]
         for e in filtered {
             if let m = e.mood { moodMap[m, default: 0] += 1 }
         }
         let moodCounts = moodMap.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }
 
-        // ── 주별 막대 (항상 이번주 기준) ──
         var weeklyBar: [ChartItem] = []
         if let ws = cal.dateInterval(of: .weekOfYear, for: today)?.start {
             let labels = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
@@ -514,7 +490,6 @@ struct StatsView: View {
 }
 
 // MARK: - Swift Charts Bar Chart
-// barColor 파라미터 추가 — 기본값 .green이므로 기존 호출지는 변경 불필요
 
 struct SwiftBarChart: View {
     let data:     [StatsView.ChartItem]
