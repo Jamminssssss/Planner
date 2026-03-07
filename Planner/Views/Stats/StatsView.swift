@@ -10,25 +10,26 @@ struct StatsView: View {
     @Query private var allPlans:   [Plan]
     @Query private var allDiaries: [DiaryEntry]
 
-    // ── 기간 탭 ──
     enum Period: String, CaseIterable {
         case day   = "Today"
         case week  = "This Week"
         case month = "This Month"
     }
     @State private var selectedPeriod: Period = .day
+    @State private var showWorkStats = false
 
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 24) {
 
+                    // ── Work stats banner ──
+                    workStatsBanner
+
                     periodPicker
                     summaryCards
                     completionChart
                     categoryBreakdown
-
-                    // ── 일기 통계 섹션 ──
                     diarySection
 
                     Spacer(minLength: 60)
@@ -38,7 +39,84 @@ struct StatsView: View {
             }
             .navigationTitle("Statistics")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showWorkStats) {
+                WorkStatsView()
+            }
         }
+    }
+
+    // MARK: - Work stats banner
+
+    private var workStatsBanner: some View {
+        let cal = Calendar.current
+        let now = Date()
+        let thisYear  = cal.component(.year,  from: now)
+        let thisMonth = cal.component(.month, from: now)
+
+        let monthWorkPlans = allPlans.filter {
+            $0.isWorkSchedule && $0.year == thisYear && $0.month == thisMonth
+        }
+        let unpaid        = monthWorkPlans.filter { !$0.isPaid }.reduce(0.0) { $0 + $1.expectedIncome }
+        let totalExpected = monthWorkPlans.reduce(0.0) { $0 + $1.expectedIncome }
+
+        return Button(action: { showWorkStats = true }) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "hammer.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.orange)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(String(localized: "work.this.month"))
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.primary)
+
+                    if monthWorkPlans.isEmpty {
+                        Text(String(localized: "work.no.schedule"))
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    } else {
+                        HStack(spacing: 6) {
+                            Text("₩\(Int(totalExpected).formatted())")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                            if unpaid > 0 {
+                                Text(String(format: String(localized: "work.unpaid.summary"),
+                                            Int(unpaid).formatted()))
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(.red)
+                            } else {
+                                Text(String(localized: "work.all.paid"))
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.green)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary.opacity(0.5))
+            }
+            .padding(14)
+            .background(
+                unpaid > 0
+                ? Color.red.opacity(0.06)
+                : Color.secondary.opacity(0.06)
+            )
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(unpaid > 0 ? Color.red.opacity(0.2) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // =========================================================
@@ -167,7 +245,6 @@ struct StatsView: View {
                     Circle()
                         .fill(item.color)
                         .frame(width: 10, height: 10)
-
                     Text(item.name)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color.primary)
@@ -183,7 +260,6 @@ struct StatsView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.secondary.opacity(0.1))
                         .frame(height: 6)
-
                     RoundedRectangle(cornerRadius: 4)
                         .fill(item.color)
                         .frame(width: geo.size.width * progress, height: 6)
@@ -194,14 +270,13 @@ struct StatsView: View {
     }
 
     // =========================================================
-    // MARK: - 📓 Diary Section
+    // MARK: - Diary Section
     // =========================================================
 
     private var diarySection: some View {
         let ds = computeDiaryStats()
 
         return VStack(alignment: .leading, spacing: 16) {
-
             HStack(spacing: 6) {
                 Text("📓")
                 Text("Diary")
@@ -224,7 +299,6 @@ struct StatsView: View {
                     Text("This Week")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Color.secondary)
-
                     SwiftBarChart(data: ds.weeklyBar, barColor: .purple)
                 }
             }
@@ -234,7 +308,6 @@ struct StatsView: View {
         .cornerRadius(14)
     }
 
-    // ── 기분 분포 시각화 ──
     private func moodDistribution(_ counts: [(Mood, Int)]) -> some View {
         let total = counts.reduce(0) { $0 + $1.1 }
 
@@ -251,7 +324,6 @@ struct StatsView: View {
                             Rectangle()
                                 .fill(mood.color)
                                 .frame(width: geo.size.width * ratio)
-
                             if ratio > 0.1 {
                                 Text(mood.emoji).font(.system(size: 14))
                             }
@@ -289,7 +361,6 @@ struct StatsView: View {
             return allPlans.filter {
                 $0.year == comps.year! && $0.month == comps.month! && $0.day == comps.day! && $0.status != .canceled
             }
-
         case .week:
             guard let weekStart = cal.dateInterval(of: .weekOfYear, for: today)?.start else { return [] }
             let weekEnd = cal.date(byAdding: .day, value: 7, to: weekStart) ?? today
@@ -298,7 +369,6 @@ struct StatsView: View {
                 let d = plan.scheduledDateOnly
                 return d >= weekStart && d < weekEnd
             }
-
         case .month:
             let comps = cal.dateComponents([.year, .month], from: today)
             return allPlans.filter {
@@ -346,7 +416,6 @@ struct StatsView: View {
                 }.count
                 return ChartItem(label: block.label, count: cnt)
             }
-
         case .week:
             guard let weekStart = cal.dateInterval(of: .weekOfYear, for: today)?.start else { return [] }
             let labels = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
@@ -358,7 +427,6 @@ struct StatsView: View {
                 }.count
                 return ChartItem(label: labels[offset], count: cnt)
             }
-
         case .month:
             let range = cal.range(of: .day, in: .month, for: today) ?? 1..<31
             return range.map { d in
@@ -512,17 +580,11 @@ struct SwiftBarChart: View {
                 }
             }
         }
-        .chartYAxis {
-            AxisMarks(position: .leading)
-        }
-        .chartXAxis {
-            AxisMarks(values: .automatic)
-        }
+        .chartYAxis { AxisMarks(position: .leading) }
+        .chartXAxis { AxisMarks(values: .automatic) }
         .frame(height: 160)
     }
 }
-
-// MARK: - Preview
 
 #Preview {
     StatsView()

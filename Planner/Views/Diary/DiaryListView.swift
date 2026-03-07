@@ -74,7 +74,6 @@ struct DiaryListView: View {
                     }
                 }
             }
-            .navigationTitle("Diary")
             .toolbar {
                 // 테마 선택 (왼쪽)
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -92,13 +91,6 @@ struct DiaryListView: View {
                     Button { showNewEntry = true } label: {
                         Image(systemName: "square.and.pencil").font(.system(size: 20))
                     }
-                }
-                // 노트 수 (하단 바)
-                ToolbarItem(placement: .bottomBar) {
-                    Text(countLabel)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
                 }
             }
         }
