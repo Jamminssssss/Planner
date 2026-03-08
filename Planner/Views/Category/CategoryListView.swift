@@ -131,21 +131,23 @@ struct CategoryListView: View {
     }
     
     private func deleteCategory(_ category: Category) {
+        // identifier를 먼저 캡처
+        var eventIds: [String] = []
         if let plans = category.plans {
             for plan in plans {
                 NotificationService.shared.cancel(planId: plan.id)
-                if let eventId = plan.eventIdentifier {
-                    CalendarService.shared.deleteEvent(identifier: eventId)
-                }
+                if let eventId = plan.eventIdentifier { eventIds.append(eventId) }
             }
         }
-        
         modelContext.delete(category)
-        
         do {
             try modelContext.save()
         } catch {
             print("[CategoryListView] Failed to delete category: \(error)")
+        }
+        // 캘린더 삭제는 저장 후 실행
+        for eid in eventIds {
+            Task { await CalendarService.shared.deleteEvent(identifier: eid) }
         }
     }
 }

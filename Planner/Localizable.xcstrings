@@ -207,12 +207,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "₩"
+            "value" : "$"
           }
         },
         "ko" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "₩"
           }
         }
@@ -682,6 +682,16 @@
         }
       }
     },
+    "Export" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "내보내기"
+          }
+        }
+      }
+    },
     "Free" : {
       "localizations" : {
         "en" : {
@@ -746,6 +756,16 @@
         }
       }
     },
+    "How to open in Google Sheets" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Sheets에서 열기"
+          }
+        }
+      }
+    },
     "Icon" : {
       "localizations" : {
         "en" : {
@@ -758,6 +778,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "아이콘"
+          }
+        }
+      }
+    },
+    "iOS 기본 캘린더에 등록됩니다. 완료하면 ✅ 표시로 업데이트되고, 삭제하면 캘린더에서도 제거됩니다." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It will be added to the iOS default calendar. When completed, it updates with a ✅ checkmark, and when deleted, it is also removed from the calendar."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS 기본 캘린더에 등록됩니다. 완료하면 ✅ 표시로 업데이트되고, 삭제하면 캘린더에서도 제거됩니다."
+          }
+        }
+      }
+    },
+    "iOS 캘린더에 추가" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to iOS Calendar"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS 캘린더에 추가"
           }
         }
       }
@@ -934,6 +986,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "오늘은 계획이 없어요"
+          }
+        }
+      }
+    },
+    "No work schedules for this month." : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이번 달에는 업무 일정이 없습니다."
           }
         }
       }
@@ -2230,6 +2292,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "구매 항목이 성공적으로 복원되었습니다."
+          }
+        }
+      }
+    },
+    "완료 처리 시 ✅로 업데이트되며, 삭제 시 캘린더에서도 제거됩니다." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When marked as complete, it updates with a ✅ checkmark, and when deleted, it is also removed from the calendar."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "완료 처리 시 ✅로 업데이트되며, 삭제 시 캘린더에서도 제거됩니다."
+          }
+        }
+      }
+    },
+    "캘린더 연동" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calendar Integration"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "캘린더 연동"
           }
         }
       }

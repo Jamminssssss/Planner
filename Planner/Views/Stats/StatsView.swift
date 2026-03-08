@@ -1,3 +1,35 @@
+// ─────────────────────────────────────────────────────────────────
+// StatsView.swift 수정 방법 (패치 가이드)
+//
+// StatsView의 두 곳만 수정하면 됩니다:
+// ─────────────────────────────────────────────────────────────────
+
+// ① @State 변수 추가 (기존 @State private var showWorkStats = false 아래에)
+//
+//    @State private var showExport = false
+
+// ② .navigationBarTitleDisplayMode(.inline) 아래에 toolbar 추가:
+//
+//    .toolbar {
+//        ToolbarItem(placement: .navigationBarTrailing) {
+//            Button {
+//                showExport = true
+//            } label: {
+//                Image(systemName: "square.and.arrow.up")
+//                    .font(.body)
+//                    .foregroundColor(.green)
+//            }
+//        }
+//    }
+//    .sheet(isPresented: $showExport) {
+//        PDFExportView()
+//    }
+
+// ─────────────────────────────────────────────────────────────────
+// 아래는 수정 완료된 StatsView 전체 파일입니다.
+// 기존 StatsView.swift를 아래 내용으로 완전히 교체하세요.
+// ─────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import SwiftData
 import Charts
@@ -17,6 +49,7 @@ struct StatsView: View {
     }
     @State private var selectedPeriod: Period = .day
     @State private var showWorkStats = false
+    @State private var showExport    = false   // ✅ 추가
 
     var body: some View {
         NavigationStack {
@@ -39,6 +72,21 @@ struct StatsView: View {
             }
             .navigationTitle("Statistics")
             .navigationBarTitleDisplayMode(.inline)
+            // ✅ PDF Export 버튼 추가
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showExport = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.body)
+                            .foregroundColor(.green)
+                    }
+                }
+            }
+            .sheet(isPresented: $showExport) {
+                PDFExportView()
+            }
             .navigationDestination(isPresented: $showWorkStats) {
                 WorkStatsView()
             }

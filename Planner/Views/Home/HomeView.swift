@@ -94,13 +94,17 @@ struct HomeView: View {
             if todayPlans.isEmpty {
                 emptyTodayView
             } else {
-                LazyVStack(spacing: 8) {
+                // List를 사용해야 swipeActions가 정상 동작
+                List {
                     ForEach(todayPlans) { plan in
                         TodayPlanRow(
                             plan:         plan,
                             onToggle:     { toggleComplete(plan) },
                             onTogglePaid: { togglePaid(plan) }
                         )
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) { deletePlan(plan) } label: {
                                 Label("Delete", systemImage: "trash")
@@ -108,6 +112,9 @@ struct HomeView: View {
                         }
                     }
                 }
+                .listStyle(.plain)
+                .scrollDisabled(true)
+                .frame(minHeight: CGFloat(todayPlans.count) * 80, maxHeight: .infinity)
             }
         }
     }
@@ -137,6 +144,17 @@ struct HomeView: View {
             plan.status = .completed; plan.completedAt = Date()
         }
         try? modelContext.save()
+
+        // ✅ 캘린더 연동 중이면 완료/미완료 상태 업데이트
+        if plan.calendarSyncEnabled {
+            Task {
+                let newId = await CalendarService.shared.updateEvent(for: plan)
+                if let id = newId, id != plan.eventIdentifier {
+                    plan.eventIdentifier = id
+                    try? modelContext.save()
+                }
+            }
+        }
     }
     private func togglePaid(_ plan: Plan) {
         guard plan.isWorkSchedule else { return }
@@ -145,8 +163,14 @@ struct HomeView: View {
     }
     private func deletePlan(_ plan: Plan) {
         NotificationService.shared.cancel(planId: plan.id)
+        // identifier를 먼저 캡처 (delete 후엔 접근 불가)
+        let eventId = plan.eventIdentifier
         modelContext.delete(plan)
         try? modelContext.save()
+        // 캘린더 삭제는 modelContext 저장 후 async로 실행
+        if let id = eventId {
+            Task { await CalendarService.shared.deleteEvent(identifier: id) }
+        }
     }
 }
 

@@ -92,11 +92,12 @@ struct AddPlanView: View {
                 if isWorkSchedule {
                     dateTimeSection
                     workFieldsSection
+                    workCalendarSection      // ✅ 근무 일정용 캘린더 연동
                 } else {
                     if !categories.isEmpty { categorySection }
                     titleMemoSection
                     dateTimeSection
-                    notificationSection
+                    notificationSection      // ✅ 알림 + 캘린더 연동 통합
                 }
             }
             .navigationTitle(
@@ -132,6 +133,7 @@ struct AddPlanView: View {
             .animation(.easeInOut(duration: 0.22), value: isWorkSchedule)
             .animation(.easeInOut(duration: 0.18), value: hasTime)
             .animation(.easeInOut(duration: 0.18), value: hasEndTime)
+            .animation(.easeInOut(duration: 0.18), value: calendarSyncEnabled)
         }
     }
 
@@ -301,6 +303,29 @@ struct AddPlanView: View {
         }
     }
 
+    // MARK: - ✅ 근무 일정용 캘린더 연동 섹션
+
+    private var workCalendarSection: some View {
+        Section {
+            Toggle(isOn: $calendarSyncEnabled) {
+                Label("iOS 캘린더에 추가", systemImage: "calendar.badge.plus")
+                    .foregroundColor(calendarSyncEnabled ? .orange : .primary)
+            }
+            .tint(.orange)
+
+            if calendarSyncEnabled {
+                calendarSyncInfoRow(tint: .orange)
+            }
+        } header: {
+            Text("캘린더 연동")
+        } footer: {
+            if calendarSyncEnabled {
+                Text("완료 처리 시 ✅로 업데이트되며, 삭제 시 캘린더에서도 제거됩니다.")
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
     // MARK: - General plan sections
 
     private var categorySection: some View {
@@ -332,16 +357,32 @@ struct AddPlanView: View {
         } header: { Text("Details") }
     }
 
+    // MARK: - ✅ 알림 + 캘린더 연동 통합 섹션
+
     private var notificationSection: some View {
         Section {
+            // 알림 토글
             Toggle("Reminder", isOn: $notificationEnabled).tint(.green)
                 .disabled(!hasTime || (isFutureDate && !storeManager.isPro))
                 .opacity((hasTime && (!isFutureDate || storeManager.isPro)) ? 1 : 0.5)
+
             if notificationEnabled && hasTime {
                 Picker("Sound", selection: $notificationSound) {
                     ForEach(NotificationSound.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
             }
+
+            // ✅ 캘린더 연동 토글
+            Toggle(isOn: $calendarSyncEnabled) {
+                Label("iOS 캘린더에 추가", systemImage: "calendar.badge.plus")
+                    .foregroundColor(calendarSyncEnabled ? .blue : .primary)
+            }
+            .tint(.blue)
+
+            if calendarSyncEnabled {
+                calendarSyncInfoRow(tint: .blue)
+            }
+
         } header: { Text("Notification") }
           footer: {
             if !hasTime {
@@ -350,6 +391,23 @@ struct AddPlanView: View {
                 Text("⭐️ Upgrade to Pro to set reminders for future dates.").foregroundColor(.orange)
             }
         }
+    }
+
+    // MARK: - 캘린더 연동 안내 행 (공통)
+
+    @ViewBuilder
+    private func calendarSyncInfoRow(tint: Color) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle.fill")
+                .foregroundColor(tint.opacity(0.7))
+                .font(.system(size: 13))
+                .padding(.top, 1)
+            Text("iOS 기본 캘린더에 등록됩니다. 완료하면 ✅ 표시로 업데이트되고, 삭제하면 캘린더에서도 제거됩니다.")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 2)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     // MARK: - Save
@@ -372,6 +430,7 @@ struct AddPlanView: View {
                 endHour:   (hasTime && hasEndTime) ? ec.hour   : 0,
                 endMinute: (hasTime && hasEndTime) ? ec.minute : 0,
                 status: .planned,
+                calendarSyncEnabled: calendarSyncEnabled,  // ✅
                 isWorkSchedule: true,
                 workUnits: resolvedWorkUnits, dailyWage: resolvedDailyWage,
                 siteName: siteName.trimmingCharacters(in: .whitespaces),
@@ -379,7 +438,17 @@ struct AddPlanView: View {
             )
             modelContext.insert(plan)
             try? modelContext.save()
+
+            // ✅ 근무 일정도 캘린더 연동
+            if calendarSyncEnabled {
+                Task {
+                    let eventId = await CalendarService.shared.createEvent(for: plan)
+                    plan.eventIdentifier = eventId
+                    try? modelContext.save()
+                }
+            }
             dismiss()
+
         } else {
             let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
             guard !trimmedTitle.isEmpty else { showValidationAlert = true; return }
@@ -428,13 +497,15 @@ struct AddPlanView: View {
             status: .planned,
             notificationEnabled: scheduleNotification,
             notificationSound: notificationSound,
-            calendarSyncEnabled: calendarSyncEnabled,
+            calendarSyncEnabled: calendarSyncEnabled,   // ✅
             category: selectedCategory
         )
         modelContext.insert(plan)
         do { try modelContext.save() } catch { print("❌ Save failed:", error); return }
 
         if scheduleNotification { Task { await NotificationService.shared.schedule(for: plan) } }
+
+        // ✅ iOS 캘린더 이벤트 생성
         if calendarSyncEnabled {
             Task {
                 let eventId = await CalendarService.shared.createEvent(for: plan)

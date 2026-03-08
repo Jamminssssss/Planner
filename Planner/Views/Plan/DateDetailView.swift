@@ -277,6 +277,17 @@ struct DateDetailView: View {
             plan.status = .completed; plan.completedAt = Date()
         }
         try? modelContext.save()
+
+        // ✅ 캘린더 연동 중이면 완료/미완료 상태 덮어씀
+        if plan.calendarSyncEnabled {
+            Task {
+                let newId = await CalendarService.shared.updateEvent(for: plan)
+                if let id = newId, id != plan.eventIdentifier {
+                    plan.eventIdentifier = id
+                    try? modelContext.save()
+                }
+            }
+        }
     }
 
     private func togglePaid(_ plan: Plan) {
@@ -285,13 +296,19 @@ struct DateDetailView: View {
     }
 
     private func deletePlans(_ plans: [Plan], at offsets: IndexSet) {
+        // identifier를 먼저 캡처 (delete 후엔 접근 불가)
+        var eventIds: [String] = []
         for i in offsets {
             let p = plans[i]
             NotificationService.shared.cancel(planId: p.id)
-            if let eid = p.eventIdentifier { CalendarService.shared.deleteEvent(identifier: eid) }
+            if let eid = p.eventIdentifier { eventIds.append(eid) }
             modelContext.delete(p)
         }
         try? modelContext.save()
+        // 캘린더 삭제는 modelContext 저장 후 실행
+        for eid in eventIds {
+            Task { await CalendarService.shared.deleteEvent(identifier: eid) }
+        }
     }
 
     // MARK: - Helpers
