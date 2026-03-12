@@ -68,6 +68,38 @@ struct AddPlanView: View {
     private var isFutureDate: Bool {
         Calendar.current.startOfDay(for: selectedDate) > Calendar.current.startOfDay(for: Date())
     }
+    // 캘린더 토글 활성화 조건:
+    // - 종료시간이 있으면 → 종료시간이 미래일 때만 허용
+    // - 종료시간 없으면  → 시작시간이 미래일 때만 허용
+    // (야근처럼 시작이 과거여도 종료가 미래면 허용)
+    private var canEnableCalendarSync: Bool {
+        guard hasTime else { return true }  // 시간 없으면 종일 일정 → 허용
+        let cal = Calendar.current
+        let now = Date()
+
+        if hasEndTime {
+            let startH = cal.component(.hour,   from: startTime)
+            let endH   = cal.component(.hour,   from: endTime)
+            let endM   = cal.component(.minute, from: endTime)
+
+            var ec = cal.dateComponents([.year, .month, .day], from: selectedDate)
+            ec.hour = endH; ec.minute = endM
+            guard var endDate = cal.date(from: ec) else { return false }
+
+            // 종료 ≤ 시작 → 자정 넘기는 야근 → 다음날로 계산
+            if endH < startH || (endH == startH && endM <= cal.component(.minute, from: startTime)) {
+                endDate = cal.date(byAdding: .day, value: 1, to: endDate) ?? endDate
+            }
+            return endDate > now   // 종료시간이 미래면 허용
+        } else {
+            // 종료시간 없으면 시작시간 기준
+            var sc = cal.dateComponents([.year, .month, .day], from: selectedDate)
+            sc.hour = cal.component(.hour, from: startTime)
+            sc.minute = cal.component(.minute, from: startTime)
+            guard let startDate = cal.date(from: sc) else { return false }
+            return startDate > now
+        }
+    }
     private var resolvedWorkUnits: Double {
         workUnitsOption == .custom ? (Double(customWorkUnits) ?? 1.0) : (workUnitsOption.value ?? 1.0)
     }
@@ -177,6 +209,12 @@ struct AddPlanView: View {
                     .foregroundColor(hasTime ? (isWorkSchedule ? .orange : .green) : .primary)
             }
             .tint(isWorkSchedule ? .orange : .green)
+            .onChange(of: hasTime) {
+                if hasTime {
+                    // 토글 켜는 순간 현재 시각으로 설정
+                    startTime = Date()
+                }
+            }
 
             if hasTime {
                 DatePicker(String(localized: "time.start"),
@@ -309,9 +347,14 @@ struct AddPlanView: View {
         Section {
             Toggle(isOn: $calendarSyncEnabled) {
                 Label("iOS 캘린더에 추가", systemImage: "calendar.badge.plus")
-                    .foregroundColor(calendarSyncEnabled ? .orange : .primary)
+                    .foregroundColor(calendarSyncEnabled ? .orange : (canEnableCalendarSync ? .primary : .secondary))
             }
             .tint(.orange)
+            .disabled(!canEnableCalendarSync)
+            .opacity(canEnableCalendarSync ? 1 : 0.4)
+            .onChange(of: canEnableCalendarSync) {
+                if !canEnableCalendarSync { calendarSyncEnabled = false }
+            }
 
             if calendarSyncEnabled {
                 calendarSyncInfoRow(tint: .orange)
@@ -319,7 +362,10 @@ struct AddPlanView: View {
         } header: {
             Text("캘린더 연동")
         } footer: {
-            if calendarSyncEnabled {
+            if !canEnableCalendarSync && hasTime {
+                Text("⏰ 과거 시간으로는 iOS 캘린더에 추가할 수 없습니다.")
+                    .foregroundColor(.red.opacity(0.7))
+            } else if calendarSyncEnabled {
                 Text("완료 처리 시 ✅로 업데이트되며, 삭제 시 캘린더에서도 제거됩니다.")
                     .foregroundColor(.secondary)
             }
@@ -372,12 +418,17 @@ struct AddPlanView: View {
                 }
             }
 
-            // ✅ 캘린더 연동 토글
+            // ✅ 캘린더 연동 토글 (과거 시간이면 비활성화)
             Toggle(isOn: $calendarSyncEnabled) {
                 Label("iOS 캘린더에 추가", systemImage: "calendar.badge.plus")
-                    .foregroundColor(calendarSyncEnabled ? .blue : .primary)
+                    .foregroundColor(calendarSyncEnabled ? .blue : (canEnableCalendarSync ? .primary : .secondary))
             }
             .tint(.blue)
+            .disabled(!canEnableCalendarSync)
+            .opacity(canEnableCalendarSync ? 1 : 0.4)
+            .onChange(of: canEnableCalendarSync) {
+                if !canEnableCalendarSync { calendarSyncEnabled = false }
+            }
 
             if calendarSyncEnabled {
                 calendarSyncInfoRow(tint: .blue)
@@ -387,6 +438,9 @@ struct AddPlanView: View {
           footer: {
             if !hasTime {
                 Text("Set a time to enable reminders.").foregroundColor(.secondary)
+            } else if !canEnableCalendarSync {
+                Text("⏰ 과거 시간으로는 iOS 캘린더에 추가할 수 없습니다.")
+                    .foregroundColor(.red.opacity(0.7))
             } else if isFutureDate && !storeManager.isPro {
                 Text("⭐️ Upgrade to Pro to set reminders for future dates.").foregroundColor(.orange)
             }

@@ -94,10 +94,10 @@ struct DiaryListView: View {
                 }
             }
         }
-        .sheet(isPresented: $showNewEntry) {
+        .fullScreenCover(isPresented: $showNewEntry) {
             DiaryEditorView(entry: nil, theme: currentTheme)
         }
-        .sheet(isPresented: $showThemePicker) {
+        .fullScreenCover(isPresented: $showThemePicker) {
             DiaryThemePickerView(
                 currentTheme: currentTheme,
                 onSelect: { theme in diaryThemeRaw = theme.rawValue }

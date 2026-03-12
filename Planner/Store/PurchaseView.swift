@@ -17,8 +17,7 @@ struct PurchaseView: View {
                     featuresSection
                     subscriptionPlansSection
                     purchaseButtonSection
-                    restoreSection
-                    legalLinksSection // ✅ Terms / Privacy 링크 추가
+                    footerLinksSection
                     
                     Spacer(minLength: 40)
                 }
@@ -256,19 +255,36 @@ struct PurchaseView: View {
         }
     }
     
-    // MARK: - Legal Links (✅ 추가)
-    private var legalLinksSection: some View {
-        VStack(spacing: 8) {
-            Link("Terms of Use", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                .font(.footnote)
-                .foregroundColor(.blue)
-            
-            Link("Privacy Policy", destination: URL(string: "https://sites.google.com/view/grassplanner/home")!)
-                .font(.footnote)
-                .foregroundColor(.blue)
+    // MARK: - Footer Links (Restore · Terms · Privacy)
+    private var footerLinksSection: some View {
+        VStack(spacing: 12) {
+            Divider()
+                .padding(.top, 8)
+            HStack(spacing: 12) {
+                Button(action: { restorePurchases() }) {
+                    Text("Restore Purchases")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+                .disabled(storeManager.isPurchasing)
+
+                Text("·")
+                    .foregroundColor(.secondary)
+
+                Link("Terms of Use", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+
+                Text("·")
+                    .foregroundColor(.secondary)
+
+                Link("Privacy Policy", destination: URL(string: "https://sites.google.com/view/grassplanner/home")!)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 4)
         }
-        .padding(.top, 16)
-        .frame(maxWidth: .infinity, alignment: .center)
     }
     
     // MARK: - Actions

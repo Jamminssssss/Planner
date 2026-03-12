@@ -65,8 +65,12 @@ struct DiaryEditorView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(theme.icon)
-                        .font(.system(size: 20))
+                    Button(action: { dismiss() }) {
+                        Text(theme.icon)
+                            .font(.system(size: 20))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close without saving")
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)

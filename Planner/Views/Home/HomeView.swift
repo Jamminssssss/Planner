@@ -72,7 +72,7 @@ struct HomeView: View {
             )) {
                 if let date = selectedDate { DateDetailView(date: date) }
             }
-            .sheet(isPresented: $showAddPlan) { AddPlanView() }
+            .fullScreenCover(isPresented: $showAddPlan) { AddPlanView() }
             .sheet(isPresented: $showPaywall)  { PurchaseView() }
         }
     }
@@ -94,27 +94,16 @@ struct HomeView: View {
             if todayPlans.isEmpty {
                 emptyTodayView
             } else {
-                // List를 사용해야 swipeActions가 정상 동작
-                List {
+                LazyVStack(spacing: 8) {
                     ForEach(todayPlans) { plan in
                         TodayPlanRow(
                             plan:         plan,
                             onToggle:     { toggleComplete(plan) },
-                            onTogglePaid: { togglePaid(plan) }
+                            onTogglePaid: { togglePaid(plan) },
+                            onDelete:     { deletePlan(plan) }
                         )
-                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) { deletePlan(plan) } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
                     }
                 }
-                .listStyle(.plain)
-                .scrollDisabled(true)
-                .frame(minHeight: CGFloat(todayPlans.count) * 80, maxHeight: .infinity)
             }
         }
     }
@@ -160,6 +149,15 @@ struct HomeView: View {
         guard plan.isWorkSchedule else { return }
         plan.isPaid = !plan.isPaid
         try? modelContext.save()
+        if plan.calendarSyncEnabled {
+            Task {
+                let newId = await CalendarService.shared.updateEvent(for: plan)
+                if let id = newId, id != plan.eventIdentifier {
+                    plan.eventIdentifier = id
+                    try? modelContext.save()
+                }
+            }
+        }
     }
     private func deletePlan(_ plan: Plan) {
         NotificationService.shared.cancel(planId: plan.id)
@@ -180,51 +178,99 @@ struct TodayPlanRow: View {
     let plan: Plan
     let onToggle:     () -> Void
     let onTogglePaid: () -> Void
+    let onDelete:     () -> Void
+
+    @State private var offset: CGFloat = 0
+    @State private var showDelete = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Button(action: onToggle) {
-                Image(systemName: plan.status == .completed ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundColor(plan.status == .completed ? .green : .secondary)
+        ZStack(alignment: .trailing) {
+            // 삭제 버튼
+            if showDelete {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.red)
+                    .overlay(
+                        Button {
+                            withAnimation { offset = 0; showDelete = false }
+                            onDelete()
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: "trash").font(.system(size: 16, weight: .medium))
+                                Text("삭제").font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(width: 72)
+                        }
+                        .frame(maxHeight: .infinity),
+                        alignment: .trailing
+                    )
             }
-            .buttonStyle(.plain)
 
-            Rectangle()
-                .fill(plan.isWorkSchedule ? Color.orange : (plan.category?.color ?? .gray))
-                .frame(width: 3).cornerRadius(2)
+            // 메인 카드
+            HStack(alignment: .top, spacing: 10) {
+                Button(action: onToggle) {
+                    Image(systemName: plan.status == .completed ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundColor(plan.status == .completed ? .green : .secondary)
+                }
+                .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: 5) {
-                // Title
-                Text(plan.title)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(plan.status == .completed ? .secondary : .primary)
-                    .strikethrough(plan.status == .completed)
-                    .fixedSize(horizontal: false, vertical: true)
+                Rectangle()
+                    .fill(plan.isWorkSchedule ? Color.orange : (plan.category?.color ?? .gray))
+                    .frame(width: 3).cornerRadius(2)
 
-                // Memo
-                if !plan.memo.isEmpty {
-                    Text(plan.memo).font(.footnote).foregroundColor(.secondary.opacity(0.7))
+                VStack(alignment: .leading, spacing: 5) {
+                    // Title
+                    Text(plan.title)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundColor(plan.status == .completed ? .secondary : .primary)
+                        .strikethrough(plan.status == .completed)
                         .fixedSize(horizontal: false, vertical: true)
-                }
 
-                // Time range badge
-                if let timeStr = plan.timeDisplay {
-                    timeRangeBadge(timeStr)
-                }
+                    // Memo
+                    if !plan.memo.isEmpty {
+                        Text(plan.memo).font(.footnote).foregroundColor(.secondary.opacity(0.7))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
-                // Work meta or general meta
-                if plan.isWorkSchedule {
-                    workMetaRow
-                } else {
-                    generalMetaRow
+                    // Time range badge
+                    if let timeStr = plan.timeDisplay {
+                        timeRangeBadge(timeStr)
+                    }
+
+                    // Work meta or general meta
+                    if plan.isWorkSchedule {
+                        workMetaRow
+                    } else {
+                        generalMetaRow
+                    }
                 }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(12)
+            .background(Color.secondary.opacity(0.06))
+            .cornerRadius(10)
+            .offset(x: offset)
+            .gesture(
+                DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                    .onChanged { v in
+                        if v.translation.width > 0 {
+                            if showDelete { withAnimation { offset = 0; showDelete = false } }
+                        } else {
+                            offset = max(v.translation.width, -80)
+                        }
+                    }
+                    .onEnded { v in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if v.translation.width < -40 {
+                                offset = -80; showDelete = true
+                            } else {
+                                offset = 0; showDelete = false
+                            }
+                        }
+                    }
+            )
         }
-        .padding(12)
-        .background(Color.secondary.opacity(0.06))
-        .cornerRadius(10)
     }
 
     private func timeRangeBadge(_ text: String) -> some View {
@@ -242,7 +288,7 @@ struct TodayPlanRow: View {
     private var workMetaRow: some View {
         HStack(spacing: 6) {
             // Units badge
-            Text(String(format: String(localized: "work.units.label"), plan.workUnits))
+            Text(String(format: "%.1f단위", plan.workUnits))
                 .font(.system(size: 11, weight: .semibold)).foregroundColor(.orange)
                 .padding(.horizontal, 7).padding(.vertical, 3)
                 .background(Color.orange.opacity(0.13)).cornerRadius(5)

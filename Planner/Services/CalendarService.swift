@@ -122,19 +122,17 @@ final class CalendarService {
         // 근무: "🔨 8.0h · 현장명" 또는 "🔨 8.0h"  (공수 최우선)
         // 일반: 상태 접두사 + 제목
         if plan.isWorkSchedule {
-            let unitStr = String(format: "%.1f", plan.workUnits)
-            var workTitle = "🔨 \(unitStr)h"
-            if !plan.siteName.isEmpty { workTitle += " · \(plan.siteName)" }
+            let unitStr = String(format: "%.1f단위", plan.workUnits)
             switch plan.status {
-            case .planned:   event.title = workTitle
-            case .completed: event.title = "✅ \(workTitle)"
-            case .canceled:  event.title = "🚫 \(workTitle)"
+            case .planned:   event.title = unitStr
+            case .completed: event.title = "✅ \(unitStr)"
+            case .canceled:  event.title = unitStr
             }
         } else {
             switch plan.status {
             case .planned:   event.title = plan.title
             case .completed: event.title = "✅ \(plan.title)"
-            case .canceled:  event.title = "🚫 \(plan.title)"
+            case .canceled:  event.title = plan.title
             }
         }
 
@@ -144,22 +142,31 @@ final class CalendarService {
         c.year = plan.year; c.month = plan.month; c.day = plan.day
 
         if plan.hasTime {
-            c.hour = plan.hour; c.minute = plan.minute
-            let start = cal.date(from: c) ?? Date()
+            // isAllDay 먼저 설정 (EventKit 요구사항)
+            event.isAllDay = false
+            // 설정한 시작시간 그대로 사용 (과거 시간도 허용)
+            c.hour = plan.hour; c.minute = plan.minute; c.second = 0
+            guard let start = cal.date(from: c) else { return }
             event.startDate = start
+
             if plan.hasEndTime {
-                var ec = c
-                ec.hour = plan.endHour; ec.minute = plan.endMinute
-                event.endDate = cal.date(from: ec) ?? start.addingTimeInterval(3600)
+                // 설정한 종료시간 그대로 사용
+                var ec = DateComponents()
+                ec.year = plan.year; ec.month = plan.month; ec.day = plan.day
+                ec.hour = plan.endHour; ec.minute = plan.endMinute; ec.second = 0
+                guard let end = cal.date(from: ec) else { return }
+                // 종료 ≤ 시작이면 자정 넘기는 일정으로 처리 (다음날)
+                event.endDate = end <= start
+                    ? (cal.date(byAdding: .day, value: 1, to: end) ?? end)
+                    : end
             } else {
                 event.endDate = start.addingTimeInterval(3600)
             }
-            event.isAllDay = false
         } else {
-            let day = cal.date(from: c) ?? Date()
+            event.isAllDay = true
+            guard let day = cal.date(from: c) else { return }
             event.startDate = day
-            event.endDate   = day.addingTimeInterval(86400)
-            event.isAllDay  = true
+            event.endDate   = cal.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86400)
         }
 
         // ── 메모 ──

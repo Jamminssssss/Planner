@@ -293,6 +293,16 @@ struct DateDetailView: View {
     private func togglePaid(_ plan: Plan) {
         plan.isPaid = !plan.isPaid
         try? modelContext.save()
+        // ✅ 지급 상태 변경도 캘린더에 반영
+        if plan.calendarSyncEnabled {
+            Task {
+                let newId = await CalendarService.shared.updateEvent(for: plan)
+                if let id = newId, id != plan.eventIdentifier {
+                    plan.eventIdentifier = id
+                    try? modelContext.save()
+                }
+            }
+        }
     }
 
     private func deletePlans(_ plans: [Plan], at offsets: IndexSet) {
