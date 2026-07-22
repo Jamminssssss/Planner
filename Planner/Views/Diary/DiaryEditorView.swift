@@ -2,20 +2,30 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 
-// MARK: - Diary Editor View (iOS Notes Style + Theme)
+// MARK: - Diary Editor View (iOS Notes Style + Theme + Lock)
 
 struct DiaryEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)      private var dismiss
     @Environment(\.colorScheme)  private var colorScheme
+    @Environment(\.scenePhase)   private var scenePhase
 
     let entry: DiaryEntry?
     let theme: SeasonTheme
 
-    // MARK: - State
+    // MARK: - Lock & Premium
+    @ObservedObject private var lockManager  = DiaryLockManager.shared
+    @ObservedObject private var storeManager = StoreKitManager.shared
 
-    @State private var text:          String = ""
-    @State private var selectedMood:  Mood?  = nil
+    @State private var isLocked          = false
+    @State private var showLockOverlay   = false
+    @State private var isLockProcessing  = false
+    @State private var lockErrorMessage: String?
+    @State private var showLockError     = false
+
+    // MARK: - Editor State
+    @State private var text:          String    = ""
+    @State private var selectedMood:  Mood?     = nil
     @State private var images:        [UIImage] = []
     @State private var pickerItems:   [PhotosPickerItem] = []
 
@@ -28,7 +38,6 @@ struct DiaryEditorView: View {
     @FocusState private var editorFocused: Bool
 
     // MARK: - Computed
-
     private var dateComps: (year: Int, month: Int, day: Int) {
         if let e = entry { return (e.year, e.month, e.day) }
         let cal = Calendar.current; let now = Date()
@@ -42,7 +51,7 @@ struct DiaryEditorView: View {
         comps.year = dateComps.year; comps.month = dateComps.month; comps.day = dateComps.day
         guard let date = Calendar.current.date(from: comps) else { return "" }
         let fmt = DateFormatter()
-        fmt.locale = Locale(identifier: "en_US")
+        fmt.locale     = Locale(identifier: "en_US")
         fmt.dateFormat = "MMMM d, yyyy  h:mm a"
         return fmt.string(from: entry?.updatedAt ?? date)
     }
@@ -52,22 +61,20 @@ struct DiaryEditorView: View {
     }
 
     // MARK: - Body
-
     var body: some View {
         ZStack {
-            // ── 테마 배경 ──
             ThemeBackgroundView(theme: theme)
 
             VStack(spacing: 0) {
-                // 날짜 헤더
+                // Date header
                 HStack {
                     Text(formattedDate)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                     Spacer()
+
                     Button(action: { dismiss() }) {
-                        Text(theme.icon)
-                            .font(.system(size: 20))
+                        Text(theme.icon).font(.system(size: 20))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Close without saving")
@@ -76,7 +83,7 @@ struct DiaryEditorView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
-                // 기분 배지
+                // Mood badge
                 if let mood = selectedMood {
                     HStack(spacing: 6) {
                         Text(mood.emoji)
@@ -99,42 +106,52 @@ struct DiaryEditorView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
 
-                // ── 스크롤 영역: 텍스트 + 이미지 인라인 ──
+                // Scroll area
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        // 이미지만 있고 텍스트 없으면 → 이미지 먼저, 커서는 아래
                         if !images.isEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             inlineImages
                         }
-                        // 자동 높이 텍스트 에디터
                         autoTextEditor
-                        // 텍스트가 있을 때 이미지는 텍스트 바로 아래
                         if !images.isEmpty && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             inlineImages
                         }
                         Spacer(minLength: 40)
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture {
-                        editorFocused = true
-                    }
+                    .onTapGesture { editorFocused = true }
                 }
 
-                Divider()
-                    .background(theme.diaryAccent.opacity(0.3))
-
-                // 하단 툴바
+                Divider().background(theme.diaryAccent.opacity(0.3))
                 bottomToolbar
+            }
+
+            // Lock Overlay (이제 무료 사용자도 접근 가능)
+            if showLockOverlay {
+                DiaryLockOverlayView(theme: theme) {
+                    guard let existing = entry else { return }
+                    let result = try await lockManager.unlockEntry(existing)
+                    text   = result.text
+                    images = result.imageDatas.compactMap { UIImage(data: $0) }
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        showLockOverlay = false
+                    }
+                }
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
+        .onAppear { loadExisting() }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, let e = entry, e.isLocked else { return }
+            if !showLockOverlay, !lockManager.isSessionUnlocked(for: e) {
+                text = ""
+                images = []
+                editorFocused = false
+                withAnimation(.easeOut(duration: 0.25)) { showLockOverlay = true }
+            }
         }
-        .onAppear {
-            loadExisting()
-        }
-        .onChange(of: pickerItems) { loadPhotos() }
+        .onChange(of: pickerItems) { _, _ in loadPhotos() }
         .confirmationDialog("Mood", isPresented: $showMoodPicker, titleVisibility: .visible) {
             ForEach(Mood.allCases, id: \.self) { mood in
                 Button("\(mood.emoji) \(mood.label)") {
@@ -154,22 +171,25 @@ struct DiaryEditorView: View {
         } message: {
             Text("This action cannot be undone.")
         }
+        .alert("Lock Error", isPresented: $showLockError, presenting: lockErrorMessage) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { msg in
+            Text(msg)
+        }
         .photosPicker(
             isPresented: $showPhotoPicker,
-            selection: $pickerItems,
+            selection:   $pickerItems,
             maxSelectionCount: 5,
             matching: .images
         )
-        .sheet(isPresented: $showShareSheet) {
+        .fullScreenCover(isPresented: $showShareSheet) {
             ShareSheet(items: shareItems)
         }
     }
 
-    // MARK: - Auto-sizing TextEditor (내용 만큼만 높이 차지)
-
+    // MARK: - Auto-sizing TextEditor
     private var autoTextEditor: some View {
         ZStack(alignment: .topLeading) {
-            // 숨겨진 Text로 높이를 자동 계산
             Text(text.isEmpty ? " " : text)
                 .font(.system(size: 17))
                 .foregroundStyle(.clear)
@@ -182,15 +202,14 @@ struct DiaryEditorView: View {
                 .font(.system(size: 17))
                 .focused($editorFocused)
                 .scrollContentBackground(.hidden)
-                .scrollDisabled(true)   // 외부 ScrollView가 담당
+                .scrollDisabled(true)
                 .background(.clear)
                 .padding(.horizontal, 16)
                 .tint(theme.diaryAccent)
         }
     }
 
-    // MARK: - Inline Images (텍스트 바로 아래 붙음)
-
+    // MARK: - Inline Images
     private var inlineImages: some View {
         VStack(spacing: 12) {
             ForEach(images.indices, id: \.self) { i in
@@ -205,7 +224,6 @@ struct DiaryEditorView: View {
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(theme.diaryAccent.opacity(0.3), lineWidth: 1)
                         )
-
                     Button {
                         images.remove(at: i)
                     } label: {
@@ -224,10 +242,9 @@ struct DiaryEditorView: View {
     }
 
     // MARK: - Bottom Toolbar
-
     private var bottomToolbar: some View {
         HStack {
-            // 기분
+            // Mood
             Button { showMoodPicker = true } label: {
                 Image(systemName: selectedMood == nil ? "face.smiling" : "face.smiling.fill")
                     .font(.system(size: 22))
@@ -236,7 +253,16 @@ struct DiaryEditorView: View {
 
             Spacer()
 
-            // 사진
+            // Lock (누구나 자유롭게 잠금 설정 가능)
+            LockStatusBadge(
+                isLocked:    isLocked,
+                accentColor: theme.diaryAccent,
+                onTap:       handleLockTap
+            )
+
+            Spacer()
+
+            // Photo
             Button { showPhotoPicker = true } label: {
                 Image(systemName: "photo")
                     .font(.system(size: 22))
@@ -245,15 +271,21 @@ struct DiaryEditorView: View {
 
             Spacer()
 
-            // 저장 (항상 표시)
+            // Save
             Button { saveAndDismiss() } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isEmpty ? .secondary : theme.diaryAccent)
+                if isLockProcessing {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(theme.diaryAccent)
+                } else {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(isEmpty ? .secondary : theme.diaryAccent)
+                }
             }
-            .disabled(isEmpty)
+            .disabled(isEmpty || isLockProcessing)
 
-            // 삭제 (기존 항목만)
+            // Delete
             if entry != nil {
                 Spacer()
                 Button { showDeleteAlert = true } label: {
@@ -272,46 +304,47 @@ struct DiaryEditorView: View {
         )
     }
 
-    private func shareText() {
-        var items: [Any] = []
+    // MARK: - Lock Tap Handler
+    private func handleLockTap() {
+        if isLocked {
+            Task { await removeLockFromEntry() }
+        } else {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                isLocked = true
+            }
+        }
+    }
 
-        // 날짜 + 기분 + 텍스트
-        var shareString = ""
-        var comps = DateComponents()
-        comps.year = dateComps.year; comps.month = dateComps.month; comps.day = dateComps.day
-        if let date = Calendar.current.date(from: comps) {
-            let fmt = DateFormatter()
-            fmt.locale = Locale(identifier: "en_US")
-            fmt.dateFormat = "MMMM d, yyyy"
-            shareString += fmt.string(from: date) + "\n"
+    private func removeLockFromEntry() async {
+        guard let existing = entry else {
+            withAnimation { isLocked = false }
+            return
         }
-        if let mood = selectedMood {
-            shareString += "\(mood.emoji) \(mood.label)\n"
+        do {
+            isLockProcessing = true
+            try await lockManager.removeLock(from: existing, in: modelContext)
+            withAnimation { isLocked = false }
+        } catch LockError.userCancelled {
+        } catch {
+            lockErrorMessage = error.localizedDescription
+            showLockError    = true
         }
-        if !text.isEmpty {
-            shareString += "\n" + text
-        }
-        if !shareString.isEmpty {
-            items.append(shareString)
-        }
-
-        // 이미지 첨부
-        for img in images {
-            items.append(img)
-        }
-
-        guard !items.isEmpty else { return }
-        shareItems = items
-        showShareSheet = true
+        isLockProcessing = false
     }
 
     // MARK: - Load / Save / Delete
-
     private func loadExisting() {
         guard let e = entry else { return }
-        text         = e.text
+
         selectedMood = e.mood
-        images       = e.sortedImages.compactMap { UIImage(data: $0.imageData) }
+        isLocked     = e.isLocked
+
+        if e.isLocked {
+            withAnimation { showLockOverlay = true }
+        } else {
+            text   = e.text
+            images = e.sortedImages.compactMap { UIImage(data: $0.imageData) }
+        }
     }
 
     private func loadPhotos() {
@@ -328,64 +361,81 @@ struct DiaryEditorView: View {
         }
     }
 
-    private func autoSave() {
-        guard !isEmpty else { return }
-        let diaryImages: [DiaryImage] = images.enumerated().compactMap { idx, img in
-            guard let data = img.jpegData(compressionQuality: 0.8) else { return nil }
-            return DiaryImage(imageData: data, order: idx)
-        }
-        if let existing = entry {
-            for old in existing.images { modelContext.delete(old) }
-            existing.text      = text
-            existing.mood      = selectedMood
-            existing.images    = diaryImages
-            existing.themeName = theme.rawValue
-            existing.updatedAt = Date()
-        } else {
-            let newEntry = DiaryEntry(
-                year:      dateComps.year,
-                month:     dateComps.month,
-                day:       dateComps.day,
-                text:      text,
-                mood:      selectedMood,
-                images:    diaryImages,
-                themeName: theme.rawValue
-            )
-            modelContext.insert(newEntry)
-        }
-        try? modelContext.save()
-    }
-
     private func saveAndDismiss() {
         guard !isEmpty else { dismiss(); return }
+        isLockProcessing = true
 
-        let diaryImages: [DiaryImage] = images.enumerated().compactMap { idx, img in
-            guard let data = img.jpegData(compressionQuality: 0.8) else { return nil }
-            return DiaryImage(imageData: data, order: idx)
+        let imageDataList: [Data] = images.compactMap {
+            $0.jpegData(compressionQuality: 0.8)
         }
 
-        if let existing = entry {
-            for old in existing.images { modelContext.delete(old) }
-            existing.text      = text
-            existing.mood      = selectedMood
-            existing.images    = diaryImages
-            existing.themeName = theme.rawValue
-            existing.updatedAt = Date()
-        } else {
-            let newEntry = DiaryEntry(
-                year:      dateComps.year,
-                month:     dateComps.month,
-                day:       dateComps.day,
-                text:      text,
-                mood:      selectedMood,
-                images:    diaryImages,
-                themeName: theme.rawValue
-            )
-            modelContext.insert(newEntry)
-        }
+        do {
+            if let existing = entry {
+                existing.mood      = selectedMood
+                existing.themeName = theme.rawValue
+                existing.updatedAt = Date()
 
-        try? modelContext.save()
-        dismiss()
+                if isLocked {
+                    let diaryImages = buildDiaryImages(from: imageDataList, encrypting: false)
+                    // 💡 옵셔널 배열을 풀어서 for 루프 실행
+                    for old in existing.images ?? [] { modelContext.delete(old) }
+                    existing.images = diaryImages
+
+                    try lockManager.reEncryptEntry(
+                        existing,
+                        newText:          text,
+                        newImageDataList: imageDataList,
+                        in:               modelContext
+                    )
+                } else {
+                    let diaryImages = buildDiaryImages(from: imageDataList, encrypting: false)
+                    // 💡 옵셔널 배열을 풀어서 for 루프 실행
+                    for old in existing.images ?? [] { modelContext.delete(old) }
+                    existing.text   = text
+                    existing.images = diaryImages
+                    existing.isLocked     = false
+                    existing.encryptedText = nil
+                    try? modelContext.save()
+                }
+
+            } else {
+                let diaryImages = buildDiaryImages(from: imageDataList, encrypting: false)
+                let newEntry = DiaryEntry(
+                    year:      dateComps.year,
+                    month:     dateComps.month,
+                    day:       dateComps.day,
+                    text:      isLocked ? "" : text,
+                    mood:      selectedMood,
+                    images:    diaryImages,
+                    themeName: theme.rawValue,
+                    isLocked:  isLocked
+                )
+                modelContext.insert(newEntry)
+
+                if isLocked {
+                    try lockManager.prepareNewLockedEntry(
+                        newEntry,
+                        text:          text,
+                        imageDataList: imageDataList
+                    )
+                }
+                try modelContext.save()
+            }
+
+            isLockProcessing = false
+            dismiss()
+
+        } catch {
+            isLockProcessing = false
+            lockErrorMessage = error.localizedDescription
+            showLockError    = true
+        }
+    }
+
+    private func buildDiaryImages(from dataList: [Data], encrypting: Bool) -> [DiaryImage] {
+        dataList.enumerated().map { idx, data in
+            DiaryImage(imageData: encrypting ? Data() : data, order: idx)
+        }
     }
 
     private func deleteAndDismiss() {
@@ -397,13 +447,10 @@ struct DiaryEditorView: View {
 }
 
 // MARK: - ShareSheet
-
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
-
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
-
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

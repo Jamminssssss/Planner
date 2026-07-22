@@ -7,7 +7,6 @@ struct GrassCalendarView: View {
     @Binding var displayedMonth: Date
     @Binding var selectedDate: Date?
 
-    // ✅ 캘린더 테마를 실시간으로 감시
     @AppStorage(ThemeType.calendar.storageKey)
     private var calendarThemeRaw: String = SeasonTheme.classic.rawValue
 
@@ -15,7 +14,8 @@ struct GrassCalendarView: View {
         SeasonTheme(rawValue: calendarThemeRaw) ?? .classic
     }
 
-    // MARK: - Calendar (절대 건드리지 않음)
+    // 💡 렌더링 렉 방지: 디스크 I/O 대신 메모리 상에서 데이터를 필터링하기 위해 전체 로드
+    @Query private var allPlans: [Plan]
 
     private let calendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
@@ -24,8 +24,6 @@ struct GrassCalendarView: View {
         return cal
     }()
 
-    // MARK: - Month Info
-
     private var monthTitle: String {
         let f = DateFormatter()
         f.calendar = calendar
@@ -33,8 +31,6 @@ struct GrassCalendarView: View {
         f.dateFormat = "MMMM yyyy"
         return f.string(from: displayedMonth)
     }
-
-    // MARK: - 핵심 로직
 
     private var calendarDays: [Date] {
         guard
@@ -67,19 +63,19 @@ struct GrassCalendarView: View {
         calendar.isDateInToday(date)
     }
 
+    // 💡 최적화됨: 뷰를 그릴 때마다 Fetch하지 않고 메모리에서 개수 파악 (속도 대폭 향상)
     private func completedCount(for date: Date) -> Int {
-        let descriptor = FetchDescriptor<Plan>(
-            predicate: #Predicate { $0.completedAt != nil }
-        )
-
-        guard let plans = try? modelContext.fetch(descriptor) else { return 0 }
-
-        return plans.filter {
-            calendar.isDate($0.completedAt!, inSameDayAs: date)
+        let year = calendar.component(.year, from: date)
+        let month = calendar.component(.month, from: date)
+        let day = calendar.component(.day, from: date)
+        
+        return allPlans.filter { plan in
+            plan.status == .completed &&
+            plan.year == year &&
+            plan.month == month &&
+            plan.day == day
         }.count
     }
-
-    // MARK: - Month Navigation
 
     private func previousMonth() {
         displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth)!
@@ -92,11 +88,12 @@ struct GrassCalendarView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 20) {
             header
             weekdayHeader
             grid
         }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Views
@@ -105,29 +102,35 @@ struct GrassCalendarView: View {
         HStack {
             Button(action: previousMonth) {
                 Image(systemName: "chevron.left")
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(.primary)
+                    .padding(8)
             }
 
             Spacer()
 
             Text(monthTitle)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 22, weight: .bold))
 
             Spacer()
 
             Button(action: nextMonth) {
                 Image(systemName: "chevron.right")
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(.primary)
+                    .padding(8)
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 8)
     }
 
     private var weekdayHeader: some View {
         let days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
         return HStack {
-            ForEach(days, id: \.self) {
-                Text($0)
-                    .font(.caption)
+            ForEach(days, id: \.self) { day in
+                Text(day)
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)
             }
@@ -136,8 +139,8 @@ struct GrassCalendarView: View {
 
     private var grid: some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7),
-            spacing: 6
+            columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7),
+            spacing: 8
         ) {
             ForEach(calendarDays, id: \.self) { date in
                 GrassCell(
@@ -145,7 +148,7 @@ struct GrassCalendarView: View {
                     completedCount: completedCount(for: date),
                     isToday: isToday(date),
                     isCurrentMonth: isCurrentMonth(date),
-                    theme: calendarTheme        // 🔥 핵심
+                    theme: calendarTheme
                 ) {
                     selectedDate = date
                 }

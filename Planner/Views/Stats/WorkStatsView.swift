@@ -6,156 +6,119 @@ import SwiftData
 struct WorkPlanEditSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-
     let plan: Plan
-
-    @State private var workUnitsOption: WorkUnitsOption = .full
+    
+    // 💡 불필요한 옵션 버튼(WorkUnitsOption)을 제거하고 범용적인 입력 상태로 통일
     @State private var customWorkUnits: String = ""
     @State private var dailyWageText: String   = ""
     @State private var siteName: String        = ""
     @State private var isPaid: Bool            = false
 
-    private var resolvedWorkUnits: Double {
-        workUnitsOption == .custom ? (Double(customWorkUnits) ?? 1.0) : (workUnitsOption.value ?? 1.0)
-    }
-    private var resolvedDailyWage: Int {
-        Int(dailyWageText.replacingOccurrences(of: ",", with: "")) ?? 0
-    }
+    private var resolvedWorkUnits: Double { Double(customWorkUnits) ?? 1.0 }
+    private var resolvedDailyWage: Int { Int(dailyWageText.replacingOccurrences(of: ",", with: "")) ?? 0 }
     private var previewIncome: Double { resolvedWorkUnits * Double(resolvedDailyWage) }
+
+    // 기기 환경에 맞는 로컬 통화 기호 (예: $, €, ₩)
+    private var currencySymbol: String { Locale.current.currencySymbol ?? "$" }
 
     var body: some View {
         NavigationStack {
             Form {
-                // Plan info (read-only)
                 Section {
                     HStack {
-                        Image(systemName: "hammer.fill").foregroundColor(.orange)
+                        Image(systemName: "briefcase.fill").foregroundColor(.orange)
                         Text(plan.title).font(.system(size: 15, weight: .medium))
                         Spacer()
-                        Text("\(plan.year)/\(plan.month)/\(plan.day)")
-                            .font(.system(size: 13)).foregroundColor(.secondary)
+                        Text("\(plan.year)/\(plan.month)/\(plan.day)").font(.system(size: 13)).foregroundColor(.secondary)
                     }
-                } header: { Text(String(localized: "work.section.schedule")) }
-
-                // Units
+                } header: { Text(String(localized: "work.section.schedule", defaultValue: "Schedule")) }
+                
                 Section {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 8) {
-                            ForEach(WorkUnitsOption.allCases, id: \.self) { opt in
-                                Button(action: { workUnitsOption = opt }) {
-                                    Text(opt.displayName)
-                                        .font(.system(size: 14, weight: .medium))
-                                        .padding(.horizontal, 12).padding(.vertical, 7)
-                                        .background(workUnitsOption == opt ? Color.orange : Color.secondary.opacity(0.12))
-                                        .foregroundColor(workUnitsOption == opt ? .white : .primary)
-                                        .cornerRadius(10)
-                                }
-                                .buttonStyle(.plain)
+                    HStack {
+                        Image(systemName: "building.2.fill").foregroundColor(.secondary)
+                        TextField(String(localized: "work.location.placeholder", defaultValue: "Location or Client name"), text: $siteName)
+                    }
+                } header: { Text(String(localized: "work.section.location", defaultValue: "Workplace / Client")) }
+                
+                // 💡 글로벌 스탠다드에 맞춘 (시간/수량) × (단가) 입력 UI
+                Section {
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(String(localized: "work.duration.label", defaultValue: "Hours / Qty"))
+                                .font(.caption).foregroundColor(.secondary)
+                            HStack {
+                                TextField("e.g. 8.5", text: $customWorkUnits)
+                                    .keyboardType(.decimalPad)
+                                    .font(.system(size: 16, weight: .medium))
+                                Text("×")
+                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 14, weight: .bold))
                             }
                         }
-                        if workUnitsOption == .custom {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(String(localized: "work.rate.label", defaultValue: "Pay Rate"))
+                                .font(.caption).foregroundColor(.secondary)
                             HStack {
-                                TextField(String(localized: "work.custom.units.placeholder"),
-                                          text: $customWorkUnits).keyboardType(.decimalPad)
-                                Text(String(localized: "work.stat.total.units"))
-                                    .foregroundColor(.secondary).font(.system(size: 14))
+                                Text(currencySymbol).foregroundColor(.secondary)
+                                TextField("Rate", text: $dailyWageText)
+                                    .keyboardType(.numberPad)
+                                    .font(.system(size: 16, weight: .medium))
                             }
-                            .padding(10).background(Color.secondary.opacity(0.08)).cornerRadius(8)
                         }
                     }
                     .padding(.vertical, 4)
-                } header: { Text(String(localized: "work.section.units")) }
-
-                // Wage
-                Section {
-                    HStack {
-                        Text("₩").foregroundColor(.secondary)
-                        TextField(String(localized: "work.wage.placeholder"),
-                                  text: $dailyWageText).keyboardType(.numberPad)
-                    }
+                    
                     if previewIncome > 0 {
                         HStack {
-                            Text(String(localized: "work.income.preview")).foregroundColor(.secondary)
+                            Text(String(localized: "work.income.preview", defaultValue: "Total Pay")).foregroundColor(.secondary)
                             Spacer()
-                            Text("₩\(Int(previewIncome).formatted())")
-                                .font(.system(size: 15, weight: .bold)).foregroundColor(.orange)
+                            Text("\(currencySymbol)\(Int(previewIncome).formatted())")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(.orange)
                         }
                     }
-                } header: { Text(String(localized: "work.section.wage")) }
-
-                // Site
-                Section {
-                    HStack {
-                        Image(systemName: "mappin.and.ellipse").foregroundColor(.secondary)
-                        TextField(String(localized: "work.site.placeholder"), text: $siteName)
-                    }
-                } header: { Text(String(localized: "work.section.site")) }
-
-                // Payment
+                } header: { Text(String(localized: "work.section.earnings", defaultValue: "Earnings Calculation")) }
+                  footer: { Text(String(localized: "work.footer.calc", defaultValue: "Enter hours worked and hourly rate, or days and daily rate.")).foregroundColor(.secondary) }
+                
                 Section {
                     Toggle(isOn: $isPaid) {
                         HStack(spacing: 10) {
-                            Image(systemName: isPaid ? "wonsign.circle.fill" : "wonsign.circle")
-                                .font(.system(size: 20))
-                                .foregroundColor(isPaid ? .green : .secondary)
+                            Image(systemName: isPaid ? "checkmark.seal.fill" : "checkmark.seal").font(.system(size: 20)).foregroundColor(isPaid ? .green : .secondary)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(isPaid
-                                     ? String(localized: "work.paid.toggle.label")
-                                     : String(localized: "work.unpaid.toggle.label"))
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(isPaid ? .green : .red)
-                                if previewIncome > 0 {
-                                    Text("₩\(Int(previewIncome).formatted())")
-                                        .font(.system(size: 13)).foregroundColor(.secondary)
-                                }
+                                Text(isPaid ? String(localized: "work.paid.toggle.label", defaultValue: "Paid") : String(localized: "work.unpaid.toggle.label", defaultValue: "Unpaid"))
+                                    .font(.system(size: 15, weight: .semibold)).foregroundColor(isPaid ? .green : .red)
                             }
                         }
-                    }
-                    .tint(.green)
-                } header: {
-                    Text(String(localized: "work.section.payment"))
-                } footer: {
-                    Text(String(localized: "work.footer.payment")).foregroundColor(.secondary)
-                }
+                    }.tint(.green)
+                } header: { Text(String(localized: "work.section.payment", defaultValue: "Payment Status")) }
             }
-            .navigationTitle(String(localized: "work.edit.nav.title"))
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(String(localized: "work.edit.nav.title", defaultValue: "Edit Work Schedule")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }.foregroundColor(.secondary)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") { save() }
-                        .font(.system(size: 15, weight: .semibold)).foregroundColor(.orange)
-                }
-            }
-            .onAppear { loadPlanData() }
+                ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() }.foregroundColor(.secondary) }
+                ToolbarItem(placement: .navigationBarTrailing) { Button("Save") { save() }.font(.system(size: 15, weight: .semibold)).foregroundColor(.orange) }
+            }.onAppear { loadPlanData() }
         }
     }
-
+    
     private func loadPlanData() {
-        switch plan.workUnits {
-        case 0.5:  workUnitsOption = .half
-        case 1.0:  workUnitsOption = .full
-        case 1.5:  workUnitsOption = .oneHalf
-        default:
-            workUnitsOption = .custom
-            customWorkUnits = String(format: "%.1f", plan.workUnits)
-        }
+        // 기존 옵션 버튼 방식의 데이터가 남아있어도 자연스럽게 텍스트로 전환
+        customWorkUnits = plan.workUnits.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", plan.workUnits) : String(format: "%.1f", plan.workUnits)
         dailyWageText = plan.dailyWage > 0 ? "\(plan.dailyWage)" : ""
-        siteName      = plan.siteName
-        isPaid        = plan.isPaid
+        siteName = plan.siteName
+        isPaid = plan.isPaid
     }
-
+    
     private func save() {
         plan.workUnits = resolvedWorkUnits
         plan.dailyWage = resolvedDailyWage
-        plan.siteName  = siteName
-        plan.isPaid    = isPaid
+        plan.siteName = siteName
+        plan.isPaid = isPaid
         try? modelContext.save()
         dismiss()
     }
 }
+
 
 // MARK: - Work Stats View
 
@@ -170,100 +133,77 @@ struct WorkStatsView: View {
     @State private var editingPlan: Plan? = nil
 
     private let calendar = Calendar.current
+    private var currencySymbol: String { Locale.current.currencySymbol ?? "$" }
 
-    private var currentYear:  Int { calendar.component(.year,  from: displayedMonth) }
-    private var currentMonth: Int { calendar.component(.month, from: displayedMonth) }
+    // 통계 계산용 튜플 타입
+    typealias WorkMonthStats = (plans: [Plan], days: Int, units: Double, expected: Double, paid: Double, unpaid: Double, rate: Double)
 
-    private var workPlans: [Plan] {
-        allPlans.filter {
-            $0.isWorkSchedule && $0.year == currentYear && $0.month == currentMonth
-        }
-        .sorted { $0.scheduledDateOnly < $1.scheduledDateOnly }
+    private var stats: WorkMonthStats {
+        let y = calendar.component(.year, from: displayedMonth)
+        let m = calendar.component(.month, from: displayedMonth)
+        let workPlans = allPlans.filter { $0.isWorkSchedule && $0.year == y && $0.month == m }
+                                .sorted { $0.scheduledDateOnly < $1.scheduledDateOnly }
+        
+        let days = workPlans.count
+        let units = workPlans.reduce(0.0) { $0 + $1.workUnits }
+        let expected = workPlans.reduce(0.0) { $0 + $1.expectedIncome }
+        let paid = workPlans.filter { $0.isPaid }.reduce(0.0) { $0 + $1.expectedIncome }
+        let unpaid = expected - paid
+        let rate = expected > 0 ? paid / expected : 0.0
+        
+        return (workPlans, days, units, expected, paid, unpaid, rate)
     }
 
-    private var totalWorkDays:  Int    { workPlans.count }
-    private var totalWorkUnits: Double { workPlans.reduce(0) { $0 + $1.workUnits } }
-    private var expectedIncome: Double { workPlans.reduce(0) { $0 + $1.expectedIncome } }
-    private var paidIncome:     Double { workPlans.filter { $0.isPaid }.reduce(0) { $0 + $1.expectedIncome } }
-    private var unpaidIncome:   Double { expectedIncome - paidIncome }
-    private var paidRate:       Double { expectedIncome > 0 ? paidIncome / expectedIncome : 0 }
-
     private var monthTitle: String {
-        let f = DateFormatter()
-        f.locale = Locale.current
-        f.dateFormat = "MMMM yyyy"
+        let f = DateFormatter(); f.locale = Locale.current; f.dateFormat = "MMMM yyyy"
         return f.string(from: displayedMonth)
     }
 
-    private func prevMonth() {
-        displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth
-    }
-    private func nextMonth() {
-        displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
-    }
-
-    // MARK: - Body
+    private func prevMonth() { displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth }
+    private func nextMonth() { displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth }
 
     var body: some View {
-        NavigationStack {
+        let currentStats = stats
+        
+        return NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
                     monthNavigator
-                    summarySection
-                    incomeProgressSection
-                    workListSection
+                    summarySection(currentStats)
+                    incomeProgressSection(currentStats)
+                    workListSection(currentStats)
                     Spacer(minLength: 60)
                 }
                 .padding(.horizontal, 16).padding(.top, 8)
             }
-            .navigationTitle(String(localized: "work.stats.nav.title"))
+            .navigationTitle(String(localized: "work.stats.nav.title", defaultValue: "Work & Earnings"))
             .navigationBarTitleDisplayMode(.inline)
-            .sheet(item: $editingPlan) { WorkPlanEditSheet(plan: $0) }
+            .fullScreenCover(item: $editingPlan) { WorkPlanEditSheet(plan: $0) }
         }
     }
-
-    // MARK: - Month navigator
 
     private var monthNavigator: some View {
         HStack {
             Button(action: prevMonth) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 16, weight: .semibold)).foregroundColor(.orange)
-                    .frame(width: 36, height: 36)
-                    .background(Color.orange.opacity(0.10)).cornerRadius(10)
-            }
-            .buttonStyle(.plain)
+                Image(systemName: "chevron.left").font(.system(size: 16, weight: .semibold)).foregroundColor(.orange)
+                    .frame(width: 36, height: 36).background(Color.orange.opacity(0.10)).cornerRadius(10)
+            }.buttonStyle(.plain)
             Spacer()
             Text(monthTitle).font(.system(size: 18, weight: .bold))
             Spacer()
             Button(action: nextMonth) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .semibold)).foregroundColor(.orange)
-                    .frame(width: 36, height: 36)
-                    .background(Color.orange.opacity(0.10)).cornerRadius(10)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.top, 4)
+                Image(systemName: "chevron.right").font(.system(size: 16, weight: .semibold)).foregroundColor(.orange)
+                    .frame(width: 36, height: 36).background(Color.orange.opacity(0.10)).cornerRadius(10)
+            }.buttonStyle(.plain)
+        }.padding(.top, 4)
     }
 
-    // MARK: - Summary cards
-
-    private var summarySection: some View {
+    private func summarySection(_ currentStats: WorkMonthStats) -> some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            summaryCard(icon: "calendar.badge.checkmark", iconColor: .blue,
-                        label: String(localized: "work.stat.days"),
-                        value: "\(totalWorkDays)")
-            summaryCard(icon: "hammer.fill", iconColor: .orange,
-                        label: String(localized: "work.stat.total.units"),
-                        value: String(format: "%.1f", totalWorkUnits))
-            summaryCard(icon: "wonsign.circle.fill", iconColor: .green,
-                        label: String(localized: "work.stat.expected"),
-                        value: "₩\(Int(expectedIncome).formatted())")
-            summaryCard(icon: "exclamationmark.circle.fill",
-                        iconColor: unpaidIncome > 0 ? .red : .secondary,
-                        label: String(localized: "work.stat.unpaid"),
-                        value: "₩\(Int(unpaidIncome).formatted())")
+            summaryCard(icon: "calendar.badge.checkmark", iconColor: .blue, label: String(localized: "work.stat.days", defaultValue: "Shifts"), value: "\(currentStats.days)")
+            summaryCard(icon: "clock.fill", iconColor: .orange, label: String(localized: "work.stat.total.duration", defaultValue: "Hours/Qty"), value: String(format: "%.1f", currentStats.units))
+            summaryCard(icon: "banknote.fill", iconColor: .green, label: String(localized: "work.stat.expected", defaultValue: "Expected"), value: "\(currencySymbol)\(Int(currentStats.expected).formatted())")
+            summaryCard(icon: "exclamationmark.circle.fill", iconColor: currentStats.unpaid > 0 ? .red : .secondary, label: String(localized: "work.stat.unpaid", defaultValue: "Unpaid"), value: "\(currencySymbol)\(Int(currentStats.unpaid).formatted())")
         }
     }
 
@@ -277,71 +217,55 @@ struct WorkStatsView: View {
         .background(Color.secondary.opacity(0.06)).cornerRadius(14)
     }
 
-    // MARK: - Income progress
-
-    private var incomeProgressSection: some View {
+    private func incomeProgressSection(_ currentStats: WorkMonthStats) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text(String(localized: "work.stat.payment.status"))
-                    .font(.system(size: 16, weight: .semibold))
+                Text(String(localized: "work.stat.payment.status", defaultValue: "Payment Status")).font(.system(size: 16, weight: .semibold))
                 Spacer()
-                Text(String(format: String(localized: "work.payment.rate"), paidRate * 100))
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(paidRate >= 1.0 ? .green : .orange)
+                Text(String(format: String(localized: "work.payment.rate", defaultValue: "%.0f%% Paid"), currentStats.rate * 100))
+                    .font(.system(size: 15, weight: .bold)).foregroundColor(currentStats.rate >= 1.0 ? .green : .orange)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.secondary.opacity(0.12)).frame(height: 14)
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(LinearGradient(colors: [.green, .green.opacity(0.7)],
-                                             startPoint: .leading, endPoint: .trailing))
-                        .frame(width: geo.size.width * paidRate, height: 14)
-                        .animation(.easeInOut(duration: 0.4), value: paidRate)
+                    RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.12)).frame(height: 14)
+                    RoundedRectangle(cornerRadius: 8).fill(LinearGradient(colors: [.green, .green.opacity(0.7)], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * currentStats.rate, height: 14)
+                        .animation(.easeInOut(duration: 0.4), value: currentStats.rate)
                 }
-            }
-            .frame(height: 14)
+            }.frame(height: 14)
             HStack {
                 HStack(spacing: 4) {
                     Circle().fill(Color.green).frame(width: 8, height: 8)
-                    Text(String(format: String(localized: "work.paid.amount"),
-                                Int(paidIncome).formatted()))
-                        .font(.system(size: 13)).foregroundColor(.secondary)
+                    Text(String(format: String(localized: "work.paid.amount", defaultValue: "Paid: %@"), "\(currencySymbol)\(Int(currentStats.paid).formatted())")).font(.system(size: 13)).foregroundColor(.secondary)
                 }
                 Spacer()
                 HStack(spacing: 4) {
                     Circle().fill(Color.red.opacity(0.7)).frame(width: 8, height: 8)
-                    Text(String(format: String(localized: "work.unpaid.amount"),
-                                Int(unpaidIncome).formatted()))
-                        .font(.system(size: 13)).foregroundColor(.secondary)
+                    Text(String(format: String(localized: "work.unpaid.amount", defaultValue: "Unpaid: %@"), "\(currencySymbol)\(Int(currentStats.unpaid).formatted())")).font(.system(size: 13)).foregroundColor(.secondary)
                 }
             }
         }
         .padding(16).background(Color.secondary.opacity(0.06)).cornerRadius(14)
     }
 
-    // MARK: - Work list
-
-    private var workListSection: some View {
+    private func workListSection(_ currentStats: WorkMonthStats) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(String(localized: "work.section.history"))
-                    .font(.system(size: 16, weight: .semibold))
+                Text(String(localized: "work.section.history", defaultValue: "History")).font(.system(size: 16, weight: .semibold))
                 Spacer()
-                Text("\(workPlans.count)")
-                    .font(.system(size: 14)).foregroundColor(.secondary)
-                Text(String(localized: "work.tap.edit"))
-                    .font(.system(size: 12)).foregroundColor(.orange)
+                Text("\(currentStats.plans.count)").font(.system(size: 14)).foregroundColor(.secondary)
+                Text(String(localized: "work.tap.edit", defaultValue: "(Tap to edit)")).font(.system(size: 12)).foregroundColor(.orange)
             }
-
-            if workPlans.isEmpty {
-                emptyWorkState
+            if currentStats.plans.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "briefcase").font(.system(size: 36)).foregroundColor(.orange.opacity(0.3))
+                    Text(String(localized: "work.empty.title", defaultValue: "No Work Records")).font(.system(size: 15, weight: .medium))
+                    Text(String(localized: "work.empty.desc", defaultValue: "Add work schedules to see your stats here.")).font(.system(size: 13)).foregroundColor(.secondary).multilineTextAlignment(.center)
+                }.frame(maxWidth: .infinity).padding(.vertical, 32)
             } else {
                 VStack(spacing: 10) {
-                    ForEach(workPlans) { plan in
-                        workRow(plan)
-                            .contentShape(Rectangle())
-                            .onTapGesture { editingPlan = plan }
+                    ForEach(currentStats.plans) { plan in
+                        workRow(plan).contentShape(Rectangle()).onTapGesture { editingPlan = plan }
                     }
                 }
             }
@@ -353,89 +277,45 @@ struct WorkStatsView: View {
         HStack(spacing: 12) {
             VStack(spacing: 2) {
                 Text("\(plan.day)").font(.system(size: 16, weight: .bold))
-                Text(dayOfWeek(plan)).font(.system(size: 11)).foregroundColor(.secondary)
-            }
-            .frame(width: 36)
+                Text(dayOfWeek(for: plan.scheduledDateOnly)).font(.system(size: 11)).foregroundColor(.secondary)
+            }.frame(width: 36)
 
-            Rectangle().fill(plan.isPaid ? Color.green : Color.orange)
-                .frame(width: 3).cornerRadius(2)
+            Rectangle().fill(plan.isPaid ? Color.green : Color.orange).frame(width: 3).cornerRadius(2)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(plan.title).font(.system(size: 14, weight: .medium))
                 HStack(spacing: 6) {
-                    if !plan.siteName.isEmpty {
-                        Label(plan.siteName, systemImage: "mappin")
-                            .font(.system(size: 12)).foregroundColor(.secondary)
-                    }
-                    Text(String(format: String(localized: "work.units.label"), plan.workUnits))
-                        .font(.system(size: 12)).foregroundColor(.orange)
-                        .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color.orange.opacity(0.12)).cornerRadius(4)
+                    if !plan.siteName.isEmpty { Label(plan.siteName, systemImage: "building.2").font(.system(size: 12)).foregroundColor(.secondary) }
+                    
+                    // 💡 "1.5h" 형태로 범용적이고 깔끔하게 표시
+                    let durationText = plan.workUnits.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", plan.workUnits) : String(format: "%.1f", plan.workUnits)
+                    Text("\(durationText)h")
+                        .font(.system(size: 12, weight: .semibold)).foregroundColor(.orange)
+                        .padding(.horizontal, 6).padding(.vertical, 2).background(Color.orange.opacity(0.12)).cornerRadius(4)
                 }
             }
-
             Spacer()
-
             VStack(alignment: .trailing, spacing: 6) {
-                Text("₩\(Int(plan.expectedIncome).formatted())")
-                    .font(.system(size: 14, weight: .semibold))
-
-                Button(action: { togglePaid(plan) }) {
+                Text("\(currencySymbol)\(Int(plan.expectedIncome).formatted())").font(.system(size: 14, weight: .semibold))
+                Button(action: { plan.isPaid.toggle(); try? modelContext.save() }) {
                     HStack(spacing: 4) {
-                        Image(systemName: plan.isPaid ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 12))
-                        Text(plan.isPaid
-                             ? String(localized: "work.paid")
-                             : String(localized: "work.unpaid"))
-                            .font(.system(size: 11, weight: .medium))
+                        Image(systemName: plan.isPaid ? "checkmark.circle.fill" : "circle").font(.system(size: 12))
+                        Text(plan.isPaid ? String(localized: "work.paid", defaultValue: "Paid") : String(localized: "work.unpaid", defaultValue: "Unpaid")).font(.system(size: 11, weight: .medium))
                     }
-                    .foregroundColor(plan.isPaid ? .green : .red)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background((plan.isPaid ? Color.green : Color.red).opacity(0.12))
-                    .cornerRadius(6)
-                }
-                .buttonStyle(.plain)
+                    .foregroundColor(plan.isPaid ? .green : .red).padding(.horizontal, 8).padding(.vertical, 4)
+                    .background((plan.isPaid ? Color.green : Color.red).opacity(0.12)).cornerRadius(6)
+                }.buttonStyle(.plain)
             }
-
-            Image(systemName: "pencil")
-                .font(.system(size: 13)).foregroundColor(.secondary.opacity(0.4))
+            Image(systemName: "pencil").font(.system(size: 13)).foregroundColor(.secondary.opacity(0.4))
         }
         .padding(12).background(Color.secondary.opacity(0.04)).cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(plan.isPaid ? Color.green.opacity(0.2) : Color.orange.opacity(0.2), lineWidth: 1)
-        )
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(plan.isPaid ? Color.green.opacity(0.2) : Color.orange.opacity(0.2), lineWidth: 1))
     }
 
-    private func togglePaid(_ plan: Plan) {
-        plan.isPaid = !plan.isPaid
-        try? modelContext.save()
-    }
-
-    private var emptyWorkState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "hammer").font(.system(size: 36)).foregroundColor(.orange.opacity(0.3))
-            Text(String(localized: "work.empty.title"))
-                .font(.system(size: 15, weight: .medium))
-            Text(String(localized: "work.empty.desc"))
-                .font(.system(size: 13)).foregroundColor(.secondary).multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity).padding(.vertical, 32)
-    }
-
-    private func dayOfWeek(_ plan: Plan) -> String {
-        var c = DateComponents()
-        c.year = plan.year; c.month = plan.month; c.day = plan.day
-        guard let date = calendar.date(from: c) else { return "" }
-        // 시스템 로케일에 맞게 요일 표시
+    private func dayOfWeek(for date: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "EEE"
         f.locale = Locale.current
         return f.string(from: date)
     }
-}
-
-#Preview {
-    WorkStatsView()
-        .modelContainer(for: [Category.self, Plan.self], inMemory: true)
 }

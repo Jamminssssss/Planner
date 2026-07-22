@@ -1,17 +1,23 @@
 import SwiftData
 import SwiftUI
 
+// UIColor 사용을 위한 프레임워크 안전 임포트
+#if canImport(UIKit)
+import UIKit
+#endif
+
 @Model
 final class Category {
-    // ❌ CloudKit에서 unique constraint 사용 불가 → 제거
-    @Attribute var id: UUID = UUID()           // 기본값 추가
-    var name: String = ""                       // 기본값 추가
-    var colorHex: String = "#4CAF50"           // 기본값 유지
-    var iconName: String = "square.fill"       // 기본값 유지
-    var createdAt: Date = Date()               // 기본값 유지
+    @Attribute var id: UUID
+    var name: String
+    var colorHex: String
+    var iconName: String
+    var createdAt: Date
 
-    // Relationship: one category has many plans
-    @Relationship var plans: [Plan]?           // optional 그대로
+    // 💡 최적화: inverse를 명시하여 Plan의 category와 완벽한 양방향 동기화 보장
+    // 카테고리 삭제 시 Plan들의 category를 nil로 만들고 싶다면 deleteRule: .nullify 추가
+    @Relationship(deleteRule: .nullify, inverse: \Plan.category)
+    var plans: [Plan]?
 
     init(
         id: UUID = UUID(),
@@ -27,20 +33,21 @@ final class Category {
         self.createdAt = createdAt
     }
 
-    // MARK: - Computed
-
+    // MARK: - Computed Properties
     var color: Color {
         Color(hex: colorHex) ?? .green
     }
 }
 
 // MARK: - Color Hex Extension
-
 extension Color {
     init?(hex: String) {
-        let hex = hex.replacingOccurrences(of: "#", with: "")
-        guard hex.count == 6,
-              let value = UInt32(hex, radix: 16) else { return nil }
+        // 공백 및 줄바꿈 제거 등 방어 로직 추가
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+        
+        guard hexSanitized.count == 6,
+              let value = UInt32(hexSanitized, radix: 16) else { return nil }
 
         let r = Double((value >> 16) & 0xFF) / 255.0
         let g = Double((value >> 8) & 0xFF) / 255.0
@@ -50,17 +57,26 @@ extension Color {
     }
 
     var hexString: String {
+        #if canImport(UIKit)
         let uiColor = UIColor(self)
         var r: CGFloat = 0
         var g: CGFloat = 0
         var b: CGFloat = 0
         var a: CGFloat = 0
+        
+        // UIColor가 RGB 색상 공간으로 변환 가능한지 확인 후 값 추출
         uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        
+        // 0.0 ~ 1.0 사이의 값으로 안전하게 제한(Clamping)
         return String(
             format: "#%02X%02X%02X",
-            Int(r * 255),
-            Int(g * 255),
-            Int(b * 255)
+            Int(max(0, min(r, 1)) * 255),
+            Int(max(0, min(g, 1)) * 255),
+            Int(max(0, min(b, 1)) * 255)
         )
+        #else
+        // macOS 등의 환경을 위한 기본 폴백
+        return "#4CAF50"
+        #endif
     }
 }

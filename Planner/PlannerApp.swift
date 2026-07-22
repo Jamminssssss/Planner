@@ -74,7 +74,28 @@ struct PlannerApp: App {
             }
             .tint(.green)
             .modelContainer(modelContainer) // SwiftData 연결
+            .background {
+                DiaryLockSessionBackgroundObserver()
+            }
         }
+    }
+}
+
+// MARK: - Diary lock: clear in-memory unlock when app backgrounds
+
+private struct DiaryLockSessionBackgroundObserver: View {
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background {
+                    DiaryLockManager.shared.clearAllSessions()
+                    print("[PlannerApp] Diary unlock sessions cleared (app background)")
+                }
+            }
     }
 }
 

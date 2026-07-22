@@ -39,7 +39,7 @@ struct CategoryListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showAddCategory) {
+            .fullScreenCover(isPresented: $showAddCategory) {
                 CategoryFormView(category: nil)
             }
             .confirmationDialog(
@@ -84,9 +84,7 @@ struct CategoryListView: View {
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
-            
             Spacer()
-            
         }
         .padding(.vertical, 4)
     }
@@ -131,28 +129,35 @@ struct CategoryListView: View {
     }
     
     private func deleteCategory(_ category: Category) {
-        // identifier를 먼저 캡처
         var eventIds: [String] = []
+        
+        // 💡 버그 수정: 경고창(All plans will also be deleted)의 내용과 실제 로직을 일치시킴.
+        // 연결된 Plan들을 먼저 모두 명시적으로 삭제하여 고아 데이터(Orphaned Data) 방지.
         if let plans = category.plans {
             for plan in plans {
                 NotificationService.shared.cancel(planId: plan.id)
                 if let eventId = plan.eventIdentifier { eventIds.append(eventId) }
+                
+                // 플랜 자체를 모델 컨텍스트에서 명시적 삭제
+                modelContext.delete(plan)
             }
         }
+        
         modelContext.delete(category)
+        
         do {
             try modelContext.save()
         } catch {
             print("[CategoryListView] Failed to delete category: \(error)")
         }
-        // 캘린더 삭제는 저장 후 실행
-        for eid in eventIds {
-            Task { await CalendarService.shared.deleteEvent(identifier: eid) }
+        
+        // 💡 최적화: 캘린더 이벤트 삭제를 하나의 Task 블록 안에서 일괄 처리
+        if !eventIds.isEmpty {
+            Task {
+                for eid in eventIds {
+                    await CalendarService.shared.deleteEvent(identifier: eid)
+                }
+            }
         }
     }
-}
-
-#Preview {
-    CategoryListView()
-        .modelContainer(for: [Category.self, Plan.self], inMemory: true)
 }

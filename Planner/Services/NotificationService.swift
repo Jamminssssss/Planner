@@ -5,13 +5,13 @@ final class NotificationService {
     static let shared = NotificationService()
     private init() {}
 
-    // MARK: - Permission
+    private func startIdentifier(for planId: UUID) -> String { planId.uuidString }
+    private func endIdentifier(for planId: UUID) -> String { planId.uuidString + "-end" }
 
     func requestPermission() async -> Bool {
         do {
-            let granted = try await UNUserNotificationCenter.current()
+            return try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
-            return granted
         } catch {
             print("[NotificationService] Permission request failed: \(error)")
             return false
@@ -19,74 +19,85 @@ final class NotificationService {
     }
 
     func checkPermissionStatus() async -> UNAuthorizationStatus {
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        return settings.authorizationStatus
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
 
-    // MARK: - Schedule
-
     func schedule(for plan: Plan) async {
+        // 💡 버그 수정: 일정이 업데이트 될 때 중복 알림이 생기지 않도록 기존 알림을 먼저 취소합니다.
+        cancel(planId: plan.id)
+        
         guard plan.notificationEnabled, plan.hasTime else { return }
 
-        // ── 콘텐츠 ──
+        await scheduleStartNotification(for: plan)
+
+        if plan.hasEndTime {
+            await scheduleEndNotification(for: plan)
+        }
+    }
+
+    private func scheduleStartNotification(for plan: Plan) async {
         let content = UNMutableNotificationContent()
-
-        // title → Plan 제목
-        // body  → 카테고리 있으면 "카테고리: 메모 또는 제목", 없으면 "메모 또는 제목"
         content.title = plan.title
+        content.body = plan.memo.isEmpty ? plan.title : plan.memo
+        content.userInfo = ["planId": plan.id.uuidString, "soundOption": plan.notificationSound.rawValue]
 
-        let categoryPrefix = plan.category.map { "\($0.name): " } ?? ""
-        let bodyText       = plan.memo.isEmpty ? plan.title : plan.memo
-        content.body       = "\(categoryPrefix)\(bodyText)"
+        applySound(plan.notificationSound, to: content)
 
-        // ── userInfo: planId + soundOption ──
-        content.userInfo = [
-            "planId":      plan.id.uuidString,
-            "soundOption": plan.notificationSound.rawValue
-        ]
+        let comps = DateComponents(timeZone: .current, year: plan.year, month: plan.month, day: plan.day, hour: plan.hour, minute: plan.minute, second: 0)
 
-        // ── 사운드 ──
-        switch plan.notificationSound {
-        case .sound:
-            content.sound = .default
-        case .vibration:
-            content.sound = UNNotificationSound(named: UNNotificationSoundName(""))
-        case .silent:
-            content.sound = nil
+        await add(identifier: startIdentifier(for: plan.id), content: content, comps: comps, label: "시작")
+    }
+
+    private func scheduleEndNotification(for plan: Plan) async {
+        let content = UNMutableNotificationContent()
+        content.title = "\(plan.title) ✅"
+        content.body = plan.memo.isEmpty ? plan.title : plan.memo
+        content.userInfo = ["planId": plan.id.uuidString, "soundOption": plan.notificationSound.rawValue, "isEnd": true]
+
+        applySound(plan.notificationSound, to: content)
+
+        // 💡 버그 수정: 단순 day + 1이 아닌 Calendar 객체를 활용한 완벽한 다음 날짜 계산
+        var comps = DateComponents(timeZone: .current, year: plan.year, month: plan.month, day: plan.day, hour: plan.endHour, minute: plan.endMinute, second: 0)
+        
+        let isOvernightEnd = (plan.endHour < plan.hour) || (plan.endHour == plan.hour && plan.endMinute <= plan.minute)
+        
+        if isOvernightEnd {
+            let cal = Calendar.current
+            if let baseDate = cal.date(from: comps),
+               let nextDayDate = cal.date(byAdding: .day, value: 1, to: baseDate) {
+                let nextDayComps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: nextDayDate)
+                comps.year = nextDayComps.year
+                comps.month = nextDayComps.month
+                comps.day = nextDayComps.day
+            }
         }
 
-        // ── 트리거 ──
-        var comps = DateComponents()
-        comps.timeZone = TimeZone.current
-        comps.year     = plan.year
-        comps.month    = plan.month
-        comps.day      = plan.day
-        comps.hour     = plan.hour
-        comps.minute   = plan.minute
-        comps.second   = 0
+        await add(identifier: endIdentifier(for: plan.id), content: content, comps: comps, label: "종료")
+    }
 
+    private func applySound(_ option: NotificationSound, to content: UNMutableNotificationContent) {
+        switch option {
+        case .sound:     content.sound = .default
+        case .vibration: content.sound = UNNotificationSound(named: UNNotificationSoundName(""))
+        case .silent:    content.sound = nil
+        }
+    }
+
+    private func add(identifier: String, content: UNMutableNotificationContent, comps: DateComponents, label: String) async {
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
-
-        // ── 등록 ──
-        let request = UNNotificationRequest(
-            identifier: plan.id.uuidString,
-            content:    content,
-            trigger:    trigger
-        )
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
 
         do {
             try await UNUserNotificationCenter.current().add(request)
-            print("[NotificationService] ✅ Scheduled: \(plan.title) → \(plan.hour):\(String(format: "%02d", plan.minute))")
         } catch {
-            print("[NotificationService] ❌ Failed: \(error)")
+            print("[NotificationService] ❌ Failed(\(label)): \(error)")
         }
     }
 
-    // MARK: - Cancel
-
     func cancel(planId: UUID) {
-        UNUserNotificationCenter.current()
-            .removePendingNotificationRequests(withIdentifiers: [planId.uuidString])
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [
+            startIdentifier(for: planId), endIdentifier(for: planId)
+        ])
     }
 
     func cancelAll() {

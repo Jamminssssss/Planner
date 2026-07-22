@@ -2,12 +2,14 @@ import SwiftUI
 
 // MARK: - Season Theme
 
-enum SeasonTheme: String, CaseIterable, Codable {
+enum SeasonTheme: String, CaseIterable, Codable, Identifiable {
     case spring = "spring"
     case summer = "summer"
     case autumn = "autumn"
     case winter = "winter"
     case classic = "classic"  // 기본 잔디
+    
+    var id: String { rawValue }
     
     var displayName: String {
         switch self {
@@ -33,13 +35,12 @@ enum SeasonTheme: String, CaseIterable, Codable {
         "com.grassplanner.theme.\(rawValue)"
     }
     
-    /// 완료 횟수에 따른 색상 (계절별로 다름)
+    /// 완료 횟수에 따른 색상
     func color(for count: Int, isCurrentMonth: Bool) -> Color {
         guard isCurrentMonth else { return .gray.opacity(0.1) }
         
         switch self {
         case .classic:
-            // 기본 녹색 계열
             switch count {
             case 0:     return Color(red: 0.88, green: 0.92, blue: 0.88)
             case 1:     return Color(red: 0.56, green: 0.83, blue: 0.47)
@@ -48,7 +49,6 @@ enum SeasonTheme: String, CaseIterable, Codable {
             }
             
         case .spring:
-            // 분홍/핑크 계열
             switch count {
             case 0:     return Color(red: 0.95, green: 0.90, blue: 0.92)
             case 1:     return Color(red: 0.98, green: 0.75, blue: 0.83)
@@ -57,7 +57,6 @@ enum SeasonTheme: String, CaseIterable, Codable {
             }
             
         case .summer:
-            // 파란/하늘색 계열
             switch count {
             case 0:     return Color(red: 0.88, green: 0.93, blue: 0.98)
             case 1:     return Color(red: 0.60, green: 0.80, blue: 0.95)
@@ -66,7 +65,6 @@ enum SeasonTheme: String, CaseIterable, Codable {
             }
             
         case .autumn:
-            // 주황/빨강 계열
             switch count {
             case 0:     return Color(red: 0.98, green: 0.92, blue: 0.85)
             case 1:     return Color(red: 0.95, green: 0.75, blue: 0.45)
@@ -75,7 +73,6 @@ enum SeasonTheme: String, CaseIterable, Codable {
             }
             
         case .winter:
-            // 하얀/파란 계열
             switch count {
             case 0:     return Color(red: 0.95, green: 0.95, blue: 0.98)
             case 1:     return Color(red: 0.85, green: 0.90, blue: 0.98)

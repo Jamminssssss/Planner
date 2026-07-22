@@ -17,6 +17,19 @@
         }
       }
     },
+    "%@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$@"
+          }
+        }
+      }
+    },
+    "%@h" : {
+
+    },
     "%lld" : {
       "localizations" : {
         "en" : {
@@ -27,32 +40,12 @@
         }
       }
     },
-    "%lld / %lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld / %2$lld"
-          }
-        }
-      }
-    },
     "%lld plan%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld plan%2$@"
-          }
-        }
-      }
-    },
-    "%lld/%lld completed" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld/%2$lld completed"
           }
         }
       }
@@ -82,6 +75,9 @@
           }
         }
       }
+    },
+    "×" : {
+
     },
     "⏰ 과거 시간으로는 iOS 캘린더에 추가할 수 없습니다." : {
 
@@ -144,6 +140,9 @@
         }
       }
     },
+    "💼 %@" : {
+
+    },
     "📋 Planned (%lld)" : {
       "localizations" : {
         "en" : {
@@ -177,6 +176,7 @@
       }
     },
     "🔨 %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -209,6 +209,7 @@
       }
     },
     "₩" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -289,6 +290,7 @@
       }
     },
     "Add a plan to grow your grass! 🌱" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -320,21 +322,8 @@
         }
       }
     },
-    "Already subscribed? Tap here to restore." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Already subscribed? Tap here to restore."
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이미 구독하셨나요? 여기를 눌러 복원하세요."
-          }
-        }
-      }
+    "Authenticating…" : {
+
     },
     "Auto-renews. Cancel anytime." : {
       "localizations" : {
@@ -369,6 +358,7 @@
       }
     },
     "By Category" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -531,6 +521,9 @@
         }
       }
     },
+    "Couldn’t unlock" : {
+
+    },
     "Count" : {
       "localizations" : {
         "en" : {
@@ -562,6 +555,9 @@
           }
         }
       }
+    },
+    "Current Theme" : {
+
     },
     "Date" : {
       "localizations" : {
@@ -691,6 +687,12 @@
         }
       }
     },
+    "e.g. 8.5" : {
+
+    },
+    "Encrypted — authenticate to view" : {
+
+    },
     "Export" : {
       "localizations" : {
         "ko" : {
@@ -717,6 +719,23 @@
         }
       }
     },
+    "Free plan: one entry saved per day. Delete it to add another." : {
+      "comment" : "Diary list hint for free users",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Free plan: one entry saved per day. Delete it to add another."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "무료 플랜: 하루에는 저장된 글 1개까지예요. 바꾸려면 지운 뒤 새로 쓸 수 있어요."
+          }
+        }
+      }
+    },
     "Go to Settings" : {
       "localizations" : {
         "en" : {
@@ -732,6 +751,9 @@
           }
         }
       }
+    },
+    "Grass Calendar" : {
+
     },
     "Grass Planner Pro" : {
       "localizations" : {
@@ -854,6 +876,12 @@
           }
         }
       }
+    },
+    "Lock Error" : {
+
+    },
+    "Locked — tap to manage" : {
+
     },
     "Missing Title" : {
       "localizations" : {
@@ -984,6 +1012,7 @@
       }
     },
     "No plans for today" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -998,6 +1027,9 @@
           }
         }
       }
+    },
+    "No schedules added." : {
+
     },
     "No work schedules for this month." : {
       "localizations" : {
@@ -1121,6 +1153,12 @@
         }
       }
     },
+    "Protected Entry" : {
+
+    },
+    "Purchase Complete!" : {
+
+    },
     "Purchased" : {
       "localizations" : {
         "en" : {
@@ -1152,6 +1190,9 @@
           }
         }
       }
+    },
+    "Rate" : {
+
     },
     "Reminder" : {
       "localizations" : {
@@ -1266,6 +1307,7 @@
       }
     },
     "Select Category" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1425,6 +1467,9 @@
         }
       }
     },
+    "This entry is encrypted.\nAuthenticate to view its contents." : {
+
+    },
     "This Week" : {
       "localizations" : {
         "en" : {
@@ -1474,6 +1519,7 @@
       }
     },
     "Today" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1504,6 +1550,12 @@
           }
         }
       }
+    },
+    "Unlock with %@" : {
+
+    },
+    "Unlocked — tap to lock" : {
+
     },
     "Upgrade to Pro" : {
       "localizations" : {
@@ -1570,6 +1622,7 @@
       }
     },
     "work.custom.units.placeholder" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1581,6 +1634,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "사용자 지정 단위"
+          }
+        }
+      }
+    },
+    "work.duration.label" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hours / Qty"
           }
         }
       }
@@ -1650,6 +1714,7 @@
       }
     },
     "work.footer.payment" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1666,6 +1731,7 @@
       }
     },
     "work.footer.site" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1709,6 +1775,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "수입 미리보기"
+          }
+        }
+      }
+    },
+    "work.location.placeholder" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Location or Client name"
           }
         }
       }
@@ -1825,6 +1902,28 @@
         }
       }
     },
+    "work.rate.label" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Pay Rate"
+          }
+        }
+      }
+    },
+    "work.section.earnings" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Earnings Calculation"
+          }
+        }
+      }
+    },
     "work.section.history" : {
       "localizations" : {
         "en" : {
@@ -1837,6 +1936,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "기록"
+          }
+        }
+      }
+    },
+    "work.section.location" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Workplace / Client"
           }
         }
       }
@@ -1874,6 +1984,7 @@
       }
     },
     "work.section.site" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1890,6 +2001,7 @@
       }
     },
     "work.section.units" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1906,6 +2018,7 @@
       }
     },
     "work.section.wage" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1922,6 +2035,7 @@
       }
     },
     "work.site.placeholder" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1985,7 +2099,19 @@
         }
       }
     },
+    "work.stat.total.duration" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hours/Qty"
+          }
+        }
+      }
+    },
     "work.stat.total.units" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2130,6 +2256,7 @@
       }
     },
     "work.units.custom" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2146,6 +2273,7 @@
       }
     },
     "work.units.full" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2162,6 +2290,7 @@
       }
     },
     "work.units.half" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2178,6 +2307,7 @@
       }
     },
     "work.units.label" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2194,6 +2324,7 @@
       }
     },
     "work.units.one.half" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2274,6 +2405,7 @@
       }
     },
     "work.wage.placeholder" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2305,7 +2437,26 @@
         }
       }
     },
+    "근무 정보" : {
+
+    },
+    "메모" : {
+
+    },
+    "미정산" : {
+
+    },
     "삭제" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "delete"
+          }
+        }
+      }
+    },
+    "예상 수익" : {
 
     },
     "완료 처리 시 ✅로 업데이트되며, 삭제 시 캘린더에서도 제거됩니다." : {
@@ -2323,6 +2474,12 @@
           }
         }
       }
+    },
+    "일정 상세" : {
+
+    },
+    "정산 완료" : {
+
     },
     "캘린더 연동" : {
       "localizations" : {

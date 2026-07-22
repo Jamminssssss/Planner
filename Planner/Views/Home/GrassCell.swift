@@ -5,7 +5,7 @@ struct GrassCell: View {
     let completedCount: Int
     let isToday: Bool
     let isCurrentMonth: Bool
-    let theme: SeasonTheme        // 🔥 부모에서 주입
+    let theme: SeasonTheme
     let onTap: () -> Void
 
     // MARK: - Computed
@@ -23,18 +23,18 @@ struct GrassCell: View {
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 8)
                     .fill(grassColor)
                     .shadow(
                         color: hasGrass ? grassColor.opacity(0.4) : .clear,
-                        radius: 2,
+                        radius: 3,
                         x: 0,
-                        y: 1
+                        y: 2
                     )
 
-                VStack(spacing: 2) {
+                VStack(spacing: 4) {
                     Text("\(day)")
-                        .font(.system(size: 11, weight: isToday ? .bold : .medium))
+                        .font(.system(size: 14, weight: isToday ? .bold : .medium))
                         .foregroundColor(
                             !isCurrentMonth ? .gray.opacity(0.4) :
                             isToday         ? .white             :
@@ -43,16 +43,18 @@ struct GrassCell: View {
 
                     if hasGrass {
                         Text(theme.icon)
-                            .font(.system(size: 9))
+                            .font(.system(size: 12))
                     }
                 }
 
                 if isToday && isCurrentMonth {
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.blue, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.blue.opacity(0.8), lineWidth: 2.5)
                 }
             }
-            .frame(height: 48)
+            // 💡 고정 높이를 제거하고 무한히 늘어나되, 가로/세로 1:1 정사각형 비율을 유지하도록 설정
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1.0, contentMode: .fit)
         }
         .buttonStyle(.plain)
     }

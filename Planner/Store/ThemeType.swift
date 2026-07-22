@@ -1,34 +1,30 @@
 import Foundation
 
 /// 테마 적용 타입 (다이어리 vs 캘린더)
-enum ThemeType {
+enum ThemeType: String, CaseIterable, Identifiable {
     case diary
     case calendar
     
+    var id: String { rawValue }
+    
     var displayName: String {
         switch self {
-        case .diary:
-            return "Diary Theme"
-        case .calendar:
-            return "Calendar Theme"
+        case .diary:    return "Diary Theme"
+        case .calendar: return "Calendar Theme"
         }
     }
     
     var storageKey: String {
         switch self {
-        case .diary:
-            return "diaryTheme"
-        case .calendar:
-            return "calendarTheme"
+        case .diary:    return "diaryTheme"
+        case .calendar: return "calendarTheme"
         }
     }
     
     var storeTitle: String {
         switch self {
-        case .diary:
-            return "Diary Themes"
-        case .calendar:
-            return "Grass Calendar Themes"
+        case .diary:    return "Diary Themes"
+        case .calendar: return "Grass Calendar Themes"
         }
     }
     
@@ -43,10 +39,8 @@ enum ThemeType {
     
     var currentThemeLabel: String {
         switch self {
-        case .diary:
-            return "Current Diary Theme"
-        case .calendar:
-            return "Current Calendar Theme"
+        case .diary:    return "Current Diary Theme"
+        case .calendar: return "Current Calendar Theme"
         }
     }
 }

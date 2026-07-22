@@ -8,14 +8,12 @@ final class StoreKitManager: ObservableObject {
     static let shared = StoreKitManager()
     
     // MARK: - Published State
-    
     @Published private(set) var subscriptionProducts: [Product] = []
     @Published private(set) var themeProducts: [Product] = []
     @Published private(set) var purchasedProductIDs: Set<String> = []
     @Published var isPurchasing: Bool = false
     
     // MARK: - Product IDs
-    
     private let monthlyProductID = "com.grassplanner.pro.monthly"
     private let yearlyProductID  = "com.grassplanner.pro.yearly"
     
@@ -30,43 +28,29 @@ final class StoreKitManager: ObservableObject {
         [monthlyProductID, yearlyProductID] + themeProductIDs
     }
     
-    // MARK: - Computed
-    
-    /// Pro 구독 활성화 여부
+    // MARK: - Computed Properties
     var isPro: Bool {
-        purchasedProductIDs.contains(monthlyProductID) ||
-        purchasedProductIDs.contains(yearlyProductID)
+        purchasedProductIDs.contains(monthlyProductID) || purchasedProductIDs.contains(yearlyProductID)
     }
+
+    var isPremium: Bool { isPro }
     
-    /// 월간 구독
-    var monthlyProduct: Product? {
-        subscriptionProducts.first { $0.id == monthlyProductID }
-    }
+    var monthlyProduct: Product? { subscriptionProducts.first { $0.id == monthlyProductID } }
+    var yearlyProduct: Product? { subscriptionProducts.first { $0.id == yearlyProductID } }
     
-    /// 연간 구독
-    var yearlyProduct: Product? {
-        subscriptionProducts.first { $0.id == yearlyProductID }
-    }
-    
-    /// 특정 테마 구매 여부
     func hasPurchased(theme: SeasonTheme) -> Bool {
         theme == .classic || purchasedProductIDs.contains(theme.productID)
     }
     
-    /// 특정 테마 상품 가져오기
     func product(for theme: SeasonTheme) -> Product? {
         themeProducts.first { $0.id == theme.productID }
     }
     
-    // MARK: - Transaction Listener
-    
+    // MARK: - Listener
     private var updateListenerTask: Task<Void, Error>?
-    
-    // MARK: - Init
     
     private init() {
         updateListenerTask = listenForTransactions()
-        
         Task {
             await loadProducts()
             await updatePurchasedProducts()
@@ -77,53 +61,40 @@ final class StoreKitManager: ObservableObject {
         updateListenerTask?.cancel()
     }
     
-    // MARK: - Load Products
-    
+    // MARK: - Network / Setup
     func loadProducts() async {
         do {
             let storeProducts = try await Product.products(for: allProductIDs)
             
-            // 구독 상품 분리
             subscriptionProducts = storeProducts
                 .filter { [monthlyProductID, yearlyProductID].contains($0.id) }
                 .sorted { p1, _ in p1.id == monthlyProductID }
             
-            // 테마 상품 분리
             themeProducts = storeProducts
                 .filter { themeProductIDs.contains($0.id) }
                 .sorted { $0.id < $1.id }
-            
-            print("[StoreKit] ✅ Loaded \(subscriptionProducts.count) subscription(s), \(themeProducts.count) theme(s)")
+                
         } catch {
             print("[StoreKit] ❌ Failed to load products: \(error)")
         }
     }
     
-    // MARK: - Purchase
-    
+    // MARK: - Core Operations
     func purchase(_ product: Product) async -> Bool {
         isPurchasing = true
         defer { isPurchasing = false }
         
         do {
             let result = try await product.purchase()
-            
             switch result {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
-                await updatePurchasedProducts()
-                print("[StoreKit] ✅ Purchase successful: \(product.id)")
+                await refreshPurchasedProducts()
+                NotificationCenter.default.post(name: .purchaseSuccess, object: nil)
                 return true
-                
-            case .userCancelled:
-                print("[StoreKit] ⚠️ User cancelled")
+            case .userCancelled, .pending:
                 return false
-                
-            case .pending:
-                print("[StoreKit] ⏳ Purchase pending")
-                return false
-                
             @unknown default:
                 return false
             }
@@ -133,22 +104,24 @@ final class StoreKitManager: ObservableObject {
         }
     }
     
-    // MARK: - Restore
-    
     func restorePurchases() async {
         isPurchasing = true
         defer { isPurchasing = false }
         
         do {
             try await AppStore.sync()
-            await updatePurchasedProducts()
-            print("[StoreKit] ✅ Restore complete")
+            await refreshPurchasedProducts()
+            if isPremium {
+                NotificationCenter.default.post(name: .purchaseSuccess, object: nil)
+            }
         } catch {
             print("[StoreKit] ❌ Restore failed: \(error)")
         }
     }
     
-    // MARK: - Update Purchased Products
+    func refreshPurchasedProducts() async {
+        await updatePurchasedProducts()
+    }
     
     func updatePurchasedProducts() async {
         var purchased: Set<String> = []
@@ -157,15 +130,12 @@ final class StoreKitManager: ObservableObject {
             do {
                 let transaction = try checkVerified(result)
                 
-                // 구독: expirationDate 체크
                 if transaction.productType == .autoRenewable {
                     if transaction.revocationDate == nil,
-                       transaction.expirationDate == nil || transaction.expirationDate! > Date() {
+                       let expirationDate = transaction.expirationDate, expirationDate > Date() {
                         purchased.insert(transaction.productID)
                     }
-                }
-                // 비소모품: revocationDate만 체크
-                else if transaction.productType == .nonConsumable {
+                } else if transaction.productType == .nonConsumable {
                     if transaction.revocationDate == nil {
                         purchased.insert(transaction.productID)
                     }
@@ -176,11 +146,9 @@ final class StoreKitManager: ObservableObject {
         }
         
         purchasedProductIDs = purchased
-        print("[StoreKit] 📦 Purchased: \(purchased)")
     }
     
-    // MARK: - Transaction Listener
-    
+    // MARK: - Transaction Updates (Background)
     private func listenForTransactions() -> Task<Void, Error> {
         return Task {
             for await result in Transaction.updates {
@@ -195,21 +163,20 @@ final class StoreKitManager: ObservableObject {
         }
     }
     
-    // MARK: - Verification
-    
+    // MARK: - Helpers
     nonisolated private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
-        case .unverified:
-            throw StoreError.failedVerification
-        case .verified(let safe):
-            return safe
+        case .unverified: throw StoreError.failedVerification
+        case .verified(let safe): return safe
         }
     }
 }
 
-
-// MARK: - Store Error
-
+// MARK: - Enums & Extensions
 enum StoreError: Error {
     case failedVerification
+}
+
+extension Notification.Name {
+    static let purchaseSuccess = Notification.Name("purchaseSuccess")
 }

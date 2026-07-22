@@ -1,72 +1,34 @@
 import Foundation
 import SwiftData
 
-// MARK: - CSV Export Service
-
 final class CSVExportService {
     static let shared = CSVExportService()
     private init() {}
 
-    // MARK: - Generate CSV
-
     func generateCSV(plans: [Plan], options: PDFExportOptions) -> String {
         let filtered = filterPlans(plans, options: options)
-
         var rows: [String] = []
 
-        // Header row
-        let headers = [
-            "Date",
-            "Day",
-            "Title",
-            "Status",
-            "Category",
-            "Start Time",
-            "End Time",
-            "Memo",
-            "Completed At",
-            "Is Work",
-            "Site Name",
-            "Work Units",
-            "Daily Wage (₩)",
-            "Expected Income (₩)",
-            "Paid",
-            "Reminder"
-        ]
+        let headers = ["Date", "Day", "Title", "Status", "Start Time", "End Time", "Memo", "Completed At", "Is Work", "Site Name", "Work Units", "Daily Wage (₩)", "Expected Income (₩)", "Paid", "Reminder"]
         rows.append(headers.map { escape($0) }.joined(separator: ","))
 
-        // Data rows
         let cal = Calendar.current
-        let dateFmt = DateFormatter()
-        dateFmt.dateFormat = "yyyy-MM-dd"
-
-        let timeFmt = DateFormatter()
-        timeFmt.dateFormat = "HH:mm"
-
-        let completedFmt = DateFormatter()
-        completedFmt.dateFormat = "yyyy-MM-dd HH:mm"
-
-        let dayFmt = DateFormatter()
-        dayFmt.dateFormat = "EEEE"
-        dayFmt.locale = Locale(identifier: "en_US")
+        let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy-MM-dd"
+        let dayFmt = DateFormatter(); dayFmt.dateFormat = "EEEE"; dayFmt.locale = Locale(identifier: "en_US")
+        let completedFmt = DateFormatter(); completedFmt.dateFormat = "yyyy-MM-dd HH:mm"
 
         for plan in filtered.sorted(by: { $0.scheduledDateOnly < $1.scheduledDateOnly }) {
-            var comps = DateComponents()
-            comps.year = plan.year; comps.month = plan.month; comps.day = plan.day
-            let date = cal.date(from: comps) ?? Date()
+            let date = cal.date(from: DateComponents(year: plan.year, month: plan.month, day: plan.day)) ?? Date()
 
-            let startTime: String = plan.hasTime
-                ? String(format: "%02d:%02d", plan.hour, plan.minute) : ""
-            let endTime: String = plan.hasEndTime
-                ? String(format: "%02d:%02d", plan.endHour, plan.endMinute) : ""
-            let completedAt: String = plan.completedAt.map { completedFmt.string(from: $0) } ?? ""
+            let startTime = plan.hasTime ? String(format: "%02d:%02d", plan.hour, plan.minute) : ""
+            let endTime = plan.hasEndTime ? String(format: "%02d:%02d", plan.endHour, plan.endMinute) : ""
+            let completedAt = plan.completedAt.map { completedFmt.string(from: $0) } ?? ""
 
             let cols: [String] = [
                 dateFmt.string(from: date),
                 dayFmt.string(from: date),
                 plan.title,
                 plan.status.rawValue.capitalized,
-                plan.category?.name ?? "",
                 startTime,
                 endTime,
                 plan.memo,
@@ -83,11 +45,8 @@ final class CSVExportService {
             rows.append(cols.map { escape($0) }.joined(separator: ","))
         }
 
-        // BOM for Excel/Google Sheets UTF-8 인식
-        return "\u{FEFF}" + rows.joined(separator: "\n")
+        return "\u{FEFF}" + rows.joined(separator: "\n") // BOM for UTF-8
     }
-
-    // MARK: - Work-only CSV (월별 정산용)
 
     func generateWorkCSV(plans: [Plan], year: Int, month: Int) -> String {
         let workPlans = plans
@@ -95,36 +54,29 @@ final class CSVExportService {
             .sorted { $0.scheduledDateOnly < $1.scheduledDateOnly }
 
         var rows: [String] = []
-
-        // 제목 행
         let cal = Calendar.current
-        var titleComps = DateComponents(); titleComps.year = year; titleComps.month = month
-        let titleDate = cal.date(from: titleComps) ?? Date()
+        let titleDate = cal.date(from: DateComponents(year: year, month: month)) ?? Date()
+        
         let titleFmt = DateFormatter(); titleFmt.dateFormat = "MMMM yyyy"; titleFmt.locale = Locale(identifier: "en_US")
         rows.append(escape("Work Schedule — \(titleFmt.string(from: titleDate))"))
         rows.append("")
 
-        // Header
         let headers = ["Date", "Day", "Site", "Units", "Wage (₩)", "Income (₩)", "Payment", "Start", "End", "Memo"]
         rows.append(headers.map { escape($0) }.joined(separator: ","))
 
         let dateFmt = DateFormatter(); dateFmt.dateFormat = "MM/dd"
         let dayFmt  = DateFormatter(); dayFmt.dateFormat = "EEE"; dayFmt.locale = Locale(identifier: "en_US")
 
-        var totalUnits:    Double = 0
-        var totalExpected: Double = 0
-        var totalPaid:     Double = 0
+        var totalUnits: Double = 0, totalExpected: Double = 0, totalPaid: Double = 0
 
         for plan in workPlans {
-            var comps = DateComponents()
-            comps.year = plan.year; comps.month = plan.month; comps.day = plan.day
-            let date = cal.date(from: comps) ?? Date()
+            let date = cal.date(from: DateComponents(year: plan.year, month: plan.month, day: plan.day)) ?? Date()
 
-            totalUnits    += plan.workUnits
+            totalUnits += plan.workUnits
             totalExpected += plan.expectedIncome
             if plan.isPaid { totalPaid += plan.expectedIncome }
 
-            let startTime = plan.hasTime    ? String(format: "%02d:%02d", plan.hour,    plan.minute)    : ""
+            let startTime = plan.hasTime ? String(format: "%02d:%02d", plan.hour, plan.minute) : ""
             let endTime   = plan.hasEndTime ? String(format: "%02d:%02d", plan.endHour, plan.endMinute) : ""
 
             let cols: [String] = [
@@ -142,47 +94,31 @@ final class CSVExportService {
             rows.append(cols.map { escape($0) }.joined(separator: ","))
         }
 
-        // Summary row
-        rows.append("")
-        rows.append([
-            escape("TOTAL"), "", "", escape(String(format: "%.1f", totalUnits)), "",
-            escape("₩\(Int(totalExpected).formatted())"),
-            escape("Paid: ₩\(Int(totalPaid).formatted())  Unpaid: ₩\(Int(totalExpected - totalPaid).formatted())"),
-            "", "", ""
-        ].joined(separator: ","))
+        rows.append("\nTOTAL,,,\(escape(String(format: "%.1f", totalUnits))),,\(escape("₩\(Int(totalExpected).formatted())")),\(escape("Paid: ₩\(Int(totalPaid).formatted())  Unpaid: ₩\(Int(totalExpected - totalPaid).formatted())")),,,")
 
         return "\u{FEFF}" + rows.joined(separator: "\n")
     }
 
-    // MARK: - Helpers
-
     private func escape(_ str: String) -> String {
-        // CSV 셀에 쉼표·따옴표·줄바꿈이 포함되면 큰따옴표로 감싸기
-        let needsQuoting = str.contains(",") || str.contains("\"") || str.contains("\n")
-        if needsQuoting {
+        if str.contains(",") || str.contains("\"") || str.contains("\n") {
             return "\"" + str.replacingOccurrences(of: "\"", with: "\"\"") + "\""
         }
         return str
     }
 
-    private func filterPlans(_ plans: [Plan], options: PDFExportOptions) -> [Plan] {
+    // 💡 최적화: Calendar의 isDate 내장 함수 활용으로 가독성 및 속도 향상
+    func filterPlans(_ plans: [Plan], options: PDFExportOptions) -> [Plan] {
         let cal = Calendar.current
         let now = Date()
 
-        let dateFiltered: [Plan]
-        switch options.range {
-        case .today:
-            let c = cal.dateComponents([.year, .month, .day], from: now)
-            dateFiltered = plans.filter { $0.year == c.year && $0.month == c.month && $0.day == c.day }
-        case .thisWeek:
-            guard let ws = cal.dateInterval(of: .weekOfYear, for: now)?.start else { return [] }
-            let we = cal.date(byAdding: .day, value: 7, to: ws) ?? now
-            dateFiltered = plans.filter { $0.scheduledDateOnly >= ws && $0.scheduledDateOnly < we }
-        case .thisMonth:
-            let c = cal.dateComponents([.year, .month], from: now)
-            dateFiltered = plans.filter { $0.year == c.year && $0.month == c.month }
-        case .allTime:
-            dateFiltered = plans
+        let dateFiltered = plans.filter { plan in
+            let date = plan.scheduledDateOnly
+            switch options.range {
+            case .today:     return cal.isDateInToday(date)
+            case .thisWeek:  return cal.isDate(date, equalTo: now, toGranularity: .weekOfYear)
+            case .thisMonth: return cal.isDate(date, equalTo: now, toGranularity: .month)
+            case .allTime:   return true
+            }
         }
 
         return dateFiltered.filter { plan in

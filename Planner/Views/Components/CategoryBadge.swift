@@ -8,16 +8,17 @@ struct CategoryBadge: View {
     
     var body: some View {
         HStack(spacing: 6) {
-            // 카테고리 아이콘
             Image(systemName: category.iconName)
                 .font(.system(size: fontSize - 1))
                 .foregroundColor(category.color)
             
-            // 카테고리 이름
             if showName {
                 Text(category.name)
                     .font(.system(size: fontSize))
                     .foregroundColor(category.color)
+                    // 💡 UI 안정성: 이름이 너무 길어질 경우 말줄임표 처리하여 레이아웃 붕괴 방지
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
         .padding(.horizontal, showName ? 10 : 6)
@@ -28,13 +29,10 @@ struct CategoryBadge: View {
 }
 
 // MARK: - Preview
-
 #Preview {
     VStack(spacing: 12) {
         CategoryBadge(category: Category(name: "YouTube", colorHex: "#FF0000", iconName: "play.rectangle.fill"))
-        CategoryBadge(category: Category(name: "Dev", colorHex: "#3498DB", iconName: "chevron.code"))
-        CategoryBadge(category: Category(name: "Workout", colorHex: "#E74C3C", iconName: "dumbbell.fill"))
-        CategoryBadge(category: Category(name: "Reading", colorHex: "#9B59B6", iconName: "books.fill"))
+        CategoryBadge(category: Category(name: "Development Work", colorHex: "#3498DB", iconName: "chevron.code"))
         
         // Icon only
         HStack(spacing: 8) {
